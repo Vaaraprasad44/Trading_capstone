@@ -3,7 +3,7 @@
 **Author**: Vaaraprasad
 **Date**: 2026-07-07
 **Status**: Draft
-**Companion docs**: [PRODUCT-BRIEF.md](PRODUCT-BRIEF.md) · [PERSONAS.md](PERSONAS.md) · [../dashboard.html](../dashboard.html) (interactive mock)
+**Companion docs**: [PRODUCT-BRIEF.md](PRODUCT-BRIEF.md) · [PERSONAS.md](PERSONAS.md) · [../web/src/html/dashboard.html](../web/src/html/dashboard.html) (interactive mock, served at `/dashboard`)
 
 ---
 
@@ -152,7 +152,7 @@ Priorities: **P0** = v1 launch-blocking · **P1** = v1 if time permits, else v1.
 - **Flow:** trader fills manually on Robinhood → publishes trade card (exits required) → subscribers alerted ≤ 1 min → subscriber sizes it via the assistant with their own inputs → reconciliation agent verifies the card against the SnapTrade feed ≤ 24h → public "✓ verified" stamp. Subscribers re-enter trades manually in their own brokerages; the swing horizon (days-to-weeks) tolerates that latency.
 - **Data:** three MCP sources — market-data MCP, news MCP, and a **custom Portfolio MCP server** wrapping SnapTrade (authored interactively in Claude Code; capstone Bar #3).
 - **AI:** three named Skills — `copy-sizing` (deterministic formulas + LLM explanation), `key-facts`, `relevance-filter` — each with prompt + ≥ 3 eval cases; at least one invoked from both Claude Code (dev) and a headless Agent SDK runner (prod; capstone Bar #5). LLM never does arithmetic; formulas live in code.
-- **Stack default (unblocked, swappable):** Next.js web app + Postgres + Stripe; Node service hosting the Agent SDK runner and background agents.
+- **Stack default (unblocked, swappable):** single Next.js app (UI + API route handlers, TypeScript) + Postgres (Prisma ORM) + Stripe; the Agent SDK runner and background agents join as a Node worker process when built (decided 2026-07-25).
 
 ## 7. Open Questions
 

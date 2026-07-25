@@ -1,0 +1,6 @@
+{
+  // .sql files here are PostgreSQL; the mssql extension (installed for another
+  // project) lints them as T-SQL and produces false errors. Verified against
+  // real Postgres 15 by docs/db-schema-checks.sql instead.
+  "mssql.intelliSense.enableIntelliSense": false
+}

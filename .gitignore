@@ -1,0 +1,9 @@
+# dependencies
+node_modules/
+
+# env files — commit only the examples
+.env*
+!.env.example
+
+# OS
+.DS_Store
