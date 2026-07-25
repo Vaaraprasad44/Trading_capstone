@@ -1,0 +1,388 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model agent_feedback {
+  id         BigInt     @id @default(autoincrement())
+  agent      agent_name
+  user_id    String     @db.Uuid
+  feedback   String
+  adjustment Json?
+  created_at DateTime   @default(now()) @db.Timestamptz(6)
+  users      users      @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model agent_runs {
+  id          BigInt     @id @default(autoincrement())
+  agent       agent_name
+  trigger     String
+  started_at  DateTime   @default(now()) @db.Timestamptz(6)
+  finished_at DateTime?  @db.Timestamptz(6)
+  status      String     @default("running")
+  summary     Json       @default("{}")
+}
+
+model ai_key_facts_cache {
+  instrument_id BigInt      @id
+  content_md    String
+  model         String
+  generated_at  DateTime    @default(now()) @db.Timestamptz(6)
+  instruments   instruments @relation(fields: [instrument_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model alert_preferences {
+  user_id      String  @db.Uuid
+  fund_id      Int     @db.SmallInt
+  trade_alerts Boolean @default(true)
+  news_alerts  Boolean @default(false)
+  channel      String  @default("email")
+  funds        funds   @relation(fields: [fund_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users        users   @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([user_id, fund_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model assistant_messages {
+  id                   BigInt                @id @default(autoincrement())
+  session_id           String                @db.Uuid
+  role                 String
+  content              String
+  question_type        String?
+  refused              Boolean               @default(false)
+  skill_invoked        String?
+  skill_inputs         Json?
+  methodology_id       BigInt?
+  created_at           DateTime              @default(now()) @db.Timestamptz(6)
+  sizing_methodologies sizing_methodologies? @relation(fields: [methodology_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  assistant_sessions   assistant_sessions    @relation(fields: [session_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([session_id, created_at])
+}
+
+model assistant_sessions {
+  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id            String               @db.Uuid
+  fund_id            Int?                 @db.SmallInt
+  trade_card_id      String?              @db.Uuid
+  started_at         DateTime             @default(now()) @db.Timestamptz(6)
+  assistant_messages assistant_messages[]
+  funds              funds?               @relation(fields: [fund_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  trade_cards        trade_cards?         @relation(fields: [trade_card_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users              users                @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model benchmark_prices {
+  symbol String
+  date   DateTime @db.Date
+  close  Decimal  @db.Decimal(18, 4)
+
+  @@id([symbol, date])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model broker_fills {
+  id               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  snaptrade_txn_id String           @unique
+  instrument_id    BigInt?
+  raw_symbol       String?
+  activity_type    String           @default("trade")
+  side             String?
+  quantity         Decimal?         @db.Decimal(18, 6)
+  price            Decimal?         @db.Decimal(18, 4)
+  amount           Decimal?         @db.Decimal(18, 2)
+  fees             Decimal          @default(0) @db.Decimal(18, 2)
+  executed_at      DateTime         @db.Timestamptz(6)
+  raw              Json
+  synced_at        DateTime         @default(now()) @db.Timestamptz(6)
+  instruments      instruments?     @relation(fields: [instrument_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  fund_cash_flows  fund_cash_flows?
+  reconciliations  reconciliations?
+
+  @@index([executed_at(sort: Desc)])
+}
+
+model disclosure_acceptances {
+  user_id               String              @db.Uuid
+  disclosure_version_id Int
+  accepted_at           DateTime            @default(now()) @db.Timestamptz(6)
+  disclosure_versions   disclosure_versions @relation(fields: [disclosure_version_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users                 users               @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([user_id, disclosure_version_id])
+}
+
+model disclosure_versions {
+  id                     Int                      @id @default(autoincrement())
+  body_md                String
+  effective_at           DateTime                 @default(now()) @db.Timestamptz(6)
+  disclosure_acceptances disclosure_acceptances[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model drawdown_comms {
+  id              BigInt    @id @default(autoincrement())
+  fund_id         Int       @db.SmallInt
+  trigger_metrics Json
+  draft_md        String
+  status          String    @default("draft")
+  approved_at     DateTime? @db.Timestamptz(6)
+  sent_at         DateTime? @db.Timestamptz(6)
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  funds           funds     @relation(fields: [fund_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model feed_syncs {
+  id             BigInt    @id @default(autoincrement())
+  trigger        String
+  started_at     DateTime  @default(now()) @db.Timestamptz(6)
+  finished_at    DateTime? @db.Timestamptz(6)
+  status         String    @default("running")
+  fills_ingested Int       @default(0)
+  error          String?
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model fund_cash_flows {
+  id             BigInt        @id @default(autoincrement())
+  fund_id        Int           @db.SmallInt
+  date           DateTime      @db.Date
+  amount         Decimal       @db.Decimal(18, 2)
+  broker_fill_id String?       @unique @db.Uuid
+  created_at     DateTime      @default(now()) @db.Timestamptz(6)
+  broker_fills   broker_fills? @relation(fields: [broker_fill_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  funds          funds         @relation(fields: [fund_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model fund_nav_daily {
+  fund_id  Int      @db.SmallInt
+  date     DateTime @db.Date
+  nav      Decimal  @db.Decimal(18, 2)
+  invested Decimal  @db.Decimal(18, 2)
+  cash     Decimal  @db.Decimal(18, 2)
+  funds    funds    @relation(fields: [fund_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([fund_id, date])
+}
+
+model funds {
+  id                   Int                    @id @db.SmallInt
+  code                 fund_code              @unique
+  name                 String
+  description          String
+  badge                String
+  benchmark_symbol     String                 @default("SPY")
+  inception_date       DateTime               @db.Date
+  alert_preferences    alert_preferences[]
+  assistant_sessions   assistant_sessions[]
+  drawdown_comms       drawdown_comms[]
+  fund_cash_flows      fund_cash_flows[]
+  fund_nav_daily       fund_nav_daily[]
+  sip_plans            sip_plans[]
+  sizing_methodologies sizing_methodologies[]
+  statements           statements[]
+  trade_cards          trade_cards[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model instruments {
+  id                 BigInt              @id @default(autoincrement())
+  symbol             String              @unique
+  name               String
+  asset_type         String              @default("equity")
+  ai_key_facts_cache ai_key_facts_cache?
+  broker_fills       broker_fills[]
+  news_items         news_items[]
+  trade_cards        trade_cards[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model news_items {
+  id               BigInt      @id @default(autoincrement())
+  instrument_id    BigInt
+  external_id      String      @unique
+  headline         String
+  summary          String?
+  url              String?
+  published_at     DateTime    @db.Timestamptz(6)
+  relevance        String?
+  relevance_reason String?
+  ranked_at        DateTime?   @db.Timestamptz(6)
+  instruments      instruments @relation(fields: [instrument_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([instrument_id, published_at(sort: Desc)])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model notifications {
+  id      BigInt   @id @default(autoincrement())
+  user_id String   @db.Uuid
+  kind    String
+  subject String
+  ref     Json     @default("{}")
+  channel String
+  sent_at DateTime @default(now()) @db.Timestamptz(6)
+  users   users    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model reconciliations {
+  id                  BigInt             @id @default(autoincrement())
+  kind                String
+  status              String
+  trade_card_id       String?            @db.Uuid
+  trade_card_event_id BigInt?
+  sip_plan_id         BigInt?
+  broker_fill_id      String?            @unique(map: "one_match_per_fill") @db.Uuid
+  details             Json               @default("{}")
+  resolved_at         DateTime?          @db.Timestamptz(6)
+  created_at          DateTime           @default(now()) @db.Timestamptz(6)
+  broker_fills        broker_fills?      @relation(fields: [broker_fill_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sip_plans           sip_plans?         @relation(fields: [sip_plan_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "reconciliations_sip_plan_fk")
+  trade_card_events   trade_card_events? @relation(fields: [trade_card_event_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  trade_cards         trade_cards?       @relation(fields: [trade_card_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model sip_plans {
+  id              BigInt            @id @default(autoincrement())
+  fund_id         Int               @db.SmallInt
+  month           DateTime          @db.Date
+  plan_md         String
+  breakdown       Json
+  published_at    DateTime?         @db.Timestamptz(6)
+  reconciliations reconciliations[]
+  funds           funds             @relation(fields: [fund_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([fund_id, month])
+}
+
+model sizing_methodologies {
+  id                 BigInt               @id @default(autoincrement())
+  fund_id            Int                  @db.SmallInt
+  version            Int
+  body_md            String
+  params             Json
+  published_at       DateTime             @default(now()) @db.Timestamptz(6)
+  assistant_messages assistant_messages[]
+  funds              funds                @relation(fields: [fund_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([fund_id, version])
+}
+
+model statements {
+  id           BigInt   @id @default(autoincrement())
+  fund_id      Int      @db.SmallInt
+  period_month DateTime @db.Date
+  pdf_path     String
+  generated_at DateTime @default(now()) @db.Timestamptz(6)
+  funds        funds    @relation(fields: [fund_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([fund_id, period_month])
+}
+
+model stripe_webhook_events {
+  stripe_event_id String    @id
+  event_type      String
+  payload         Json
+  processed_at    DateTime? @db.Timestamptz(6)
+  error           String?
+  received_at     DateTime  @default(now()) @db.Timestamptz(6)
+}
+
+model subscriptions {
+  id                     String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                String    @unique @db.Uuid
+  stripe_customer_id     String    @unique
+  stripe_subscription_id String    @unique
+  status                 String
+  current_period_end     DateTime  @db.Timestamptz(6)
+  canceled_at            DateTime? @db.Timestamptz(6)
+  updated_at             DateTime  @default(now()) @db.Timestamptz(6)
+  users                  users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model trade_card_events {
+  id              BigInt            @id @default(autoincrement())
+  trade_card_id   String            @db.Uuid
+  event_type      String
+  payload         Json              @default("{}")
+  note_md         String?
+  created_at      DateTime          @default(now()) @db.Timestamptz(6)
+  reconciliations reconciliations[]
+  trade_cards     trade_cards       @relation(fields: [trade_card_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([trade_card_id, created_at])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model trade_cards {
+  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fund_id            Int                  @db.SmallInt
+  instrument_id      BigInt
+  direction          trade_direction
+  entry_price        Decimal              @db.Decimal(18, 4)
+  position_pct       Decimal              @db.Decimal(6, 3)
+  thesis_md          String
+  stop_price         Decimal?             @db.Decimal(18, 4)
+  exit_rules_md      String?
+  status             card_status          @default(draft)
+  published_at       DateTime?            @db.Timestamptz(6)
+  created_at         DateTime             @default(now()) @db.Timestamptz(6)
+  assistant_sessions assistant_sessions[]
+  reconciliations    reconciliations[]
+  trade_card_events  trade_card_events[]
+  funds              funds                @relation(fields: [fund_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  instruments        instruments          @relation(fields: [instrument_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model users {
+  id                     String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                  String                   @unique
+  auth_provider          String
+  auth_subject           String
+  role                   String                   @default("subscriber")
+  created_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  agent_feedback         agent_feedback[]
+  alert_preferences      alert_preferences[]
+  assistant_sessions     assistant_sessions[]
+  disclosure_acceptances disclosure_acceptances[]
+  notifications          notifications[]
+  subscriptions          subscriptions?
+
+  @@unique([auth_provider, auth_subject])
+}
+
+enum agent_name {
+  reconciliation
+  trade_alert
+  news_alert
+  drawdown_watch
+  statement_gen
+}
+
+enum card_status {
+  draft
+  published
+  closed
+}
+
+enum fund_code {
+  alpha
+  sip
+  swing
+}
+
+enum trade_direction {
+  long
+  short
+}

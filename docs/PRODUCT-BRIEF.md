@@ -89,4 +89,4 @@ Supporting AI (nice-to-have, v1.x): plain-English **company financial-strength c
 - **Spec/deploy/observability:** Bars #1, #6, #7
 
 ---
-*Companion docs: `PRD.md` (epics + features), `PERSONAS.md` (personas), `CAPSTONE-SPEC.md` (submission one-pager, TBD), `CAPSTONE-PLAN.md` (architecture + diagrams, TBD), `../dashboard.html` (interactive mock).*
+*Companion docs: `PRD.md` (epics + features), `PERSONAS.md` (personas), `DB-SCHEMA.md` (database schema), `CAPSTONE-SPEC.md` (submission one-pager, TBD), `CAPSTONE-PLAN.md` (architecture + diagrams, TBD), `../web/src/html/dashboard.html` (interactive mock, served at `/dashboard`).*
