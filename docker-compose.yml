@@ -20,7 +20,7 @@ services:
   # Behind a profile so plain `docker compose up -d` still starts only the DB
   # for local dev. Full stack: docker compose --profile app up -d --build
   app:
-    build: ./web
+    build: .
     container_name: meridian-app
     profiles: ["app"]
     ports:

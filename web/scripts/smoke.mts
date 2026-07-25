@@ -15,8 +15,9 @@ await admin.$executeRawUnsafe('CREATE DATABASE meridian_smoke')
 await admin.$disconnect()
 execSync('npx prisma migrate deploy', { env: { ...process.env, DATABASE_URL: SMOKE_URL }, stdio: 'pipe' })
 
+// reference data only — the smoke's exact-count assertions need a clean slate
 const db = new PrismaClient({ datasourceUrl: SMOKE_URL })
-await seed(db)
+await seed(db, { demo: false })
 await db.$disconnect()
 
 const server = spawn('npx', ['next', 'dev', '-p', String(PORT)], {
