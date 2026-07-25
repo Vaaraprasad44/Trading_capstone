@@ -3,7 +3,7 @@
 **Author**: Vaaraprasad
 **Date**: 2026-07-07
 **Status**: Draft
-**Companion docs**: [PRODUCT-BRIEF.md](PRODUCT-BRIEF.md) · [PERSONAS.md](PERSONAS.md) · [../web/src/html/dashboard.html](../web/src/html/dashboard.html) (interactive mock, served at `/dashboard`)
+**Companion docs**: [PRODUCT-BRIEF.md](PRODUCT-BRIEF.md) · [PERSONAS.md](PERSONAS.md) · [../web/src/app/dashboard/](../web/src/app/dashboard/) (interactive mock as React pages, served at `/dashboard`)
 
 ---
 

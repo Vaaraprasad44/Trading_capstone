@@ -1,0 +1,9 @@
+web/node_modules
+web/.next
+.env*
+!**/.env.example
+.git
+docs
+*.md
+.vscode
+.github
