@@ -1,12 +1,34 @@
 /* Dashboard styles, ported from the HTML prototype.
    Namespaced under .dash so they can't collide with the landing page. */
 
-.dash { padding-bottom: 60px; }
-.dash .wrap { max-width: 1240px; }
+/* The whole dashboard sits on the particle core's deep-space background.
+   Every component is themed through these variables, so overriding them here
+   turns all surfaces into translucent glass in both themes at once. */
+.dash {
+  padding-bottom: 60px; min-height: 100vh;
+  background-image: radial-gradient(120% 90% at 50% -10%, #221244 0%, #140a26 48%, #0a0614 100%);
+  background-attachment: fixed;
+  color: var(--text);
+  --bg: #0d0818;
+  --surface: rgba(232, 234, 242, 0.06);
+  --surface-2: rgba(232, 234, 242, 0.09);
+  --text: #f2f4f8;
+  --text-2: rgba(232, 234, 242, 0.65);
+  --text-3: rgba(232, 234, 242, 0.45);
+  --border: rgba(232, 234, 242, 0.14);
+  --shadow: none;
+  --brand-soft: rgba(41, 98, 255, 0.22);
+  --up: #00e694;
+  --dn: #ff5b6e;
+  --up-soft: rgba(0, 230, 148, 0.14);
+  --dn-soft: rgba(255, 91, 110, 0.14);
+}
+.dash .card { backdrop-filter: blur(8px); }
+.dash .wrap { max-width: 1480px; }
 .dash a { color: var(--brand); text-decoration: none; }
 .dash a:hover { text-decoration: underline; }
 
-.dash .nav { background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50; }
+.dash .nav { background: rgba(13, 8, 24, 0.75); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50; }
 .dash .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 64px; }
 .dash .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; color: var(--text); }
 .dash .logo:hover { text-decoration: none; }
@@ -19,6 +41,35 @@
 .dash .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--brand-soft); color: var(--brand); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; }
 
 .dash .hero { padding: 28px 0 8px; }
+.dash .hero-row { display: grid; grid-template-columns: 1fr 640px; gap: 32px; align-items: center; padding: 28px 0 8px; }
+.dash .hero-row .hero { padding: 0; }
+/* left column: hero copy on top, ticker tape pinned to the bottom so it
+   lines up with the breadth chips across the row */
+.dash .hero-col { display: flex; flex-direction: column; gap: 18px; align-self: stretch; min-width: 0; padding: 8px 0; }
+.dash .hero-col .hero { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+.dash .tape { overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent); mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent); }
+.dash .tape-track { display: flex; width: max-content; animation: tape-scroll 45s linear infinite; }
+.dash .tape:hover .tape-track { animation-play-state: paused; }
+.dash .tape-row { display: flex; }
+.dash .tape-item { display: inline-flex; align-items: baseline; gap: 7px; margin-right: 34px; font-size: 12.5px; white-space: nowrap; }
+.dash .tape-item b { color: #e8eaf2; font-weight: 600; }
+.dash .tape-val { color: rgba(232, 234, 242, 0.6); font-variant-numeric: tabular-nums; }
+.dash .tape-up { color: #00e694; font-variant-numeric: tabular-nums; }
+.dash .tape-dn { color: #ff5b6e; font-variant-numeric: tabular-nums; }
+@keyframes tape-scroll { to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .dash .tape-track { animation: none; } }
+/* Borderless: the core floats directly on the page's space background. */
+.dash .breadth-panel { display: flex; flex-direction: column; gap: 8px; }
+.dash .bp-head { display: flex; align-items: center; justify-content: space-between; }
+.dash .bp-head h3 { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 7px; color: rgba(232, 234, 242, 0.85); }
+.dash .bp-tag { font-size: 10px; font-weight: 500; color: rgba(232, 234, 242, 0.5); border: 1px solid rgba(232, 234, 242, 0.2); border-radius: 5px; padding: 1px 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+.dash .bp-mood { font-size: 12px; font-weight: 600; }
+.dash .bp-canvas { height: 330px; }
+.dash .bp-chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.dash .bp-chip { background: rgba(232, 234, 242, 0.07); border-radius: 8px; padding: 7px 10px; display: flex; flex-direction: column; gap: 1px; }
+.dash .bp-chip span { font-size: 11px; color: rgba(232, 234, 242, 0.55); }
+.dash .bp-chip b { font-size: 14px; font-variant-numeric: tabular-nums; color: #e8eaf2; }
+@media (max-width: 900px) { .dash .hero-row { grid-template-columns: 1fr; } }
 .dash .hero h1 { font-size: 25px; font-weight: 700; letter-spacing: -0.02em; }
 .dash .hero h1 .accent { color: var(--brand); }
 .dash .hero p { color: var(--text-2); font-size: 14px; margin-top: 6px; }

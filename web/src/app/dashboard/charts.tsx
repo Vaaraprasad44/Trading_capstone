@@ -21,10 +21,12 @@ type CssVars = { brand: string; text2: string; text3: string; border: string; up
 
 // Chart colors come from the live CSS variables so they follow the theme.
 // themeTick bumps on toggle → re-read. Null until mounted (no document in SSR).
+// Read from .dash (not the root): the dashboard overrides the palette locally
+// to blend everything into the space background.
 function useCssVars(themeTick: number): CssVars | null {
   const [vars, setVars] = useState<CssVars | null>(null);
   useEffect(() => {
-    const s = getComputedStyle(document.documentElement);
+    const s = getComputedStyle(document.querySelector(".dash") ?? document.documentElement);
     const v = (n: string) => s.getPropertyValue(n).trim();
     setVars({
       brand: v("--brand"), text2: v("--text-2"), text3: v("--text-3"),

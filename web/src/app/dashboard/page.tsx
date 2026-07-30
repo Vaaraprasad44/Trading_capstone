@@ -5,6 +5,8 @@ import Link from "next/link";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { alphaHoldings, sipHoldings, swingClosed, swingOpen, type FundKey, type Holding } from "./data";
 import { AlphaView, Hero, SipView, StockDrawer, SwingView } from "./views";
+import { BreadthPanel } from "./BreadthCore";
+import { TickerTape } from "./TickerTape";
 import "./dashboard.css";
 
 const FUNDS: { key: FundKey; label: string }[] = [
@@ -73,7 +75,13 @@ export default function Dashboard() {
       </nav>
 
       <div className="wrap">
-        <Hero fund={fund} />
+        <div className="hero-row">
+          <div className="hero-col">
+            <Hero fund={fund} />
+            <TickerTape />
+          </div>
+          <BreadthPanel />
+        </div>
         {fund === "alpha" && <AlphaView holdings={alpha} themeTick={themeTick} onOpen={openStock} onAsk={ask} />}
         {fund === "sip" && <SipView holdings={sip} themeTick={themeTick} onOpen={openStock} onAsk={ask} />}
         {fund === "swing" && (
