@@ -16,6 +16,7 @@ import {
   type Holding,
 } from "./data";
 import { AllocDonut, EquityChart, PerfChart, SipChart, SparkChart } from "./charts";
+import { HoldingsGrid } from "./HoldingsGrid";
 
 type Ask = (q: string) => void;
 type OpenStock = (ticker: string) => void;
@@ -139,47 +140,25 @@ function AllocationCard({ holdings, unit, themeTick }: { holdings: ComputedHoldi
   );
 }
 
-/* ============ holdings table ============ */
+/* ============ holdings table (AG Grid) ============ */
 
-type SortKey = "ticker" | "name" | "qty" | "avg" | "ltp" | "buyValue" | "presentValue" | "pnlPct" | "allocation" | "day";
-
-const COLUMNS: { key: SortKey; label: string }[] = [
-  { key: "ticker", label: "Ticker" },
-  { key: "name", label: "Name" },
-  { key: "qty", label: "Qty" },
-  { key: "avg", label: "Avg buy" },
-  { key: "ltp", label: "LTP" },
-  { key: "buyValue", label: "Buy value" },
-  { key: "presentValue", label: "Present value" },
-  { key: "pnlPct", label: "P&L %" },
-  { key: "allocation", label: "Alloc %" },
-  { key: "day", label: "Day %" },
-];
-
-function HoldingsTable({ holdings, title, onOpen }: { holdings: ComputedHolding[]; title: string; onOpen: OpenStock }) {
-  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "pnlPct", dir: -1 });
+function HoldingsTable({ holdings, title, onOpen, onAskAi }: {
+  holdings: ComputedHolding[];
+  title: string;
+  onOpen: OpenStock;
+  onAskAi: () => void;
+}) {
   const [filter, setFilter] = useState("");
-
-  const rows = useMemo(() => {
-    let r = holdings;
-    if (filter) r = r.filter((h) => (h.ticker + " " + h.name).toLowerCase().includes(filter));
-    return [...r].sort((a, b) => {
-      const x = a[sort.key];
-      const y = b[sort.key];
-      if (typeof x === "string" && typeof y === "string") return x < y ? -sort.dir : x > y ? sort.dir : 0;
-      return ((x as number) - (y as number)) * sort.dir;
-    });
-  }, [holdings, sort, filter]);
-
-  const clickHeader = (key: SortKey) =>
-    setSort((s) => (s.key === key ? { key, dir: -s.dir as 1 | -1 } : { key, dir: key === "ticker" || key === "name" ? 1 : -1 }));
 
   return (
     <div className="card section">
       <div className="table-tools">
         <h2>{title}</h2>
-        <div className="live">
-          <span className="live-dot" /> Live · updated 1s ago
+        <div className="table-tools-right">
+          <div className="live">
+            <span className="live-dot" /> Live · updated 1s ago
+          </div>
+          <button className="ai-open-btn" onClick={onAskAi}>✦ Ask AI</button>
         </div>
       </div>
       <div className="table-tools" style={{ paddingTop: 0 }}>
@@ -189,51 +168,19 @@ function HoldingsTable({ holdings, title, onOpen }: { holdings: ComputedHolding[
             type="text"
             placeholder="Search holdings…"
             value={filter}
-            onChange={(e) => setFilter(e.target.value.toLowerCase().trim())}
+            onChange={(e) => setFilter(e.target.value)}
           />
         </div>
       </div>
       <AiHint />
-      <div style={{ overflowX: "auto" }}>
-        <table>
-          <thead>
-            <tr>
-              {COLUMNS.map((c) => (
-                <th key={c.key} className={sort.key === c.key ? "sorted" : ""} onClick={() => clickHeader(c.key)}>
-                  {c.label} <span className="arrow">{sort.key === c.key ? (sort.dir === 1 ? "▲" : "▼") : "▲"}</span>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((h) => (
-              <tr key={h.ticker + h.name} onClick={() => onOpen(h.ticker)}>
-                <td>
-                  <span className="tkr">
-                    {h.ticker} <span className="chev">›</span>
-                  </span>
-                </td>
-                <td>{h.name}</td>
-                <td>{h.qty.toFixed(2)}</td>
-                <td>{usd2(h.avg)}</td>
-                <td>{usd2(h.ltp)}</td>
-                <td>{usd(h.buyValue)}</td>
-                <td>{usd(h.presentValue)}</td>
-                <td className={h.pnlPct >= 0 ? "t-up" : "t-dn"}>{pct(h.pnlPct)}</td>
-                <td>{h.allocation.toFixed(2)}%</td>
-                <td className={h.day >= 0 ? "t-up" : "t-dn"}>{pct(h.day)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <HoldingsGrid holdings={holdings} filter={filter} onOpen={onOpen} />
     </div>
   );
 }
 
 /* ============ fund views ============ */
 
-export function AlphaView({ holdings, themeTick, onOpen, onAsk }: { holdings: Holding[]; themeTick: number; onOpen: OpenStock; onAsk: Ask }) {
+export function AlphaView({ holdings, themeTick, onOpen, onAsk, onAskAi }: { holdings: Holding[]; themeTick: number; onOpen: OpenStock; onAsk: Ask; onAskAi: () => void }) {
   const H = computeHoldings(holdings);
   const FUND_SIZE = 1000000;
   const REALIZED = 376674.63;
@@ -308,7 +255,7 @@ export function AlphaView({ holdings, themeTick, onOpen, onAsk }: { holdings: Ho
         </div>
         <AllocationCard holdings={H} unit="positions" themeTick={themeTick} />
       </div>
-      <HoldingsTable holdings={H} title="Stock holdings" onOpen={onOpen} />
+      <HoldingsTable holdings={H} title="Stock holdings" onOpen={onOpen} onAskAi={onAskAi} />
       <div className="section cols">
         <div className="card card-pad">
           <div className="section-head">
@@ -322,7 +269,7 @@ export function AlphaView({ holdings, themeTick, onOpen, onAsk }: { holdings: Ho
   );
 }
 
-export function SipView({ holdings, themeTick, onOpen, onAsk }: { holdings: Holding[]; themeTick: number; onOpen: OpenStock; onAsk: Ask }) {
+export function SipView({ holdings, themeTick, onOpen, onAsk, onAskAi }: { holdings: Holding[]; themeTick: number; onOpen: OpenStock; onAsk: Ask; onAskAi: () => void }) {
   const H = computeHoldings(holdings);
   const monthly = 2000;
   const months = 30;
@@ -368,7 +315,7 @@ export function SipView({ holdings, themeTick, onOpen, onAsk }: { holdings: Hold
         <AllocationCard holdings={H} unit="funds" themeTick={themeTick} />
         <AskBox onAsk={onAsk} />
       </div>
-      <HoldingsTable holdings={H} title="SIP holdings" onOpen={onOpen} />
+      <HoldingsTable holdings={H} title="SIP holdings" onOpen={onOpen} onAskAi={onAskAi} />
     </>
   );
 }
