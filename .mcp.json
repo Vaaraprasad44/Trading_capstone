@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "portfolio": {
+      "command": "npx",
+      "args": ["--prefix", "web", "tsx", "--env-file=web/.env", "web/scripts/portfolio-mcp.mts"]
+    }
+  }
+}
