@@ -1,53 +1,173 @@
 @import "tailwindcss";
 
-/* Meridian design tokens — shared by the landing page and dashboard
-   (ported from the HTML prototypes; theme switched via data-theme on <html>) */
+/* Dark mode is toggled by adding the `dark` class to <html> (see ThemeToggle). */
+@custom-variant dark (&:is(.dark *));
+
+/* ============ Theme — TradingView-inspired (shadcn-compatible tokens)
+   Brand blue #2962ff; up/down use TV's candle colors (#089981 / #f23645);
+   dark theme on TV's navy-charcoal #131722. ============ */
 :root {
-  --bg: #f4f5f9;
-  --surface: #fff;
-  --surface-2: #f7f8fc;
-  --border: #e7e9f0;
-  --text: #1a1d2b;
-  --text-2: #5b6071;
-  --text-3: #9095a6;
-  --brand: #4e4feb;
-  --brand-soft: #ececfe;
-  --up: #189e6a;
-  --up-soft: #e4f6ee;
-  --dn: #e0413a;
-  --dn-soft: #fdeceb;
-  --amber: #e8911c;
-  --amber-soft: #fbe8d6;
-  --radius: 16px;
-  --radius-sm: 10px;
-  --shadow: 0 1px 3px rgba(20, 23, 40, 0.04), 0 8px 24px rgba(20, 23, 40, 0.04);
-  --shadow-lg: 0 4px 12px rgba(20, 23, 40, 0.06), 0 24px 64px rgba(20, 23, 40, 0.1);
+  --background: #ffffff;
+  --foreground: #131722;
+  --card: #ffffff;
+  --card-foreground: #131722;
+  --popover: #ffffff;
+  --popover-foreground: #131722;
+  --primary: #2962ff;
+  --primary-foreground: #ffffff;
+  --secondary: #f0f3fa;
+  --secondary-foreground: #131722;
+  --muted: #f0f3fa;
+  --muted-foreground: #787b86;
+  --accent: #2962ff;
+  --accent-foreground: #ffffff;
+  --destructive: #f23645;
+  --destructive-foreground: #ffffff;
+  --border: #e0e3eb;
+  --input: #e0e3eb;
+  --ring: #2962ff;
+  --chart-1: #089981;
+  --chart-2: #2962ff;
+  --chart-3: #ff9800;
+  --chart-4: #f23645;
+  --chart-5: #787b86;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #131722;
+  --sidebar-primary: #2962ff;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f0f3fa;
+  --sidebar-accent-foreground: #131722;
+  --sidebar-border: #e0e3eb;
+  --sidebar-ring: #2962ff;
+  --radius: 0.5rem;
+  --letter-spacing: 0.01em;
+  --font-sans: var(--font-inter), Inter, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), "JetBrains Mono", monospace;
+  --font-serif: Georgia, serif;
 }
 
-[data-theme="dark"] {
-  --bg: #0d0f17;
-  --surface: #161925;
-  --surface-2: #1c2030;
-  --border: #262a3a;
-  --text: #eef0f6;
-  --text-2: #a3a8bb;
-  --text-3: #6b7081;
-  --brand: #7c7cff;
-  --brand-soft: #23234a;
-  --up: #34d399;
-  --up-soft: #123026;
-  --dn: #f87171;
-  --dn-soft: #3a1d1d;
-  --amber: #f0a94a;
-  --amber-soft: #3a2a14;
-  --shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.4), 0 24px 64px rgba(0, 0, 0, 0.5);
+.dark {
+  --background: #131722;
+  --foreground: #d1d4dc;
+  --card: #1e222d;
+  --card-foreground: #d1d4dc;
+  --popover: #1e222d;
+  --popover-foreground: #d1d4dc;
+  --primary: #2962ff;
+  --primary-foreground: #ffffff;
+  --secondary: #2a2e39;
+  --secondary-foreground: #d1d4dc;
+  --muted: #2a2e39;
+  --muted-foreground: #868b98;
+  --accent: #2962ff;
+  --accent-foreground: #ffffff;
+  --destructive: #f23645;
+  --destructive-foreground: #ffffff;
+  --border: #2a2e39;
+  --input: #2a2e39;
+  --ring: #2962ff;
+  --chart-1: #089981;
+  --chart-2: #5b9cf6;
+  --chart-3: #ff9800;
+  --chart-4: #f23645;
+  --chart-5: #868b98;
+  --sidebar: #131722;
+  --sidebar-foreground: #d1d4dc;
+  --sidebar-primary: #2962ff;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #2a2e39;
+  --sidebar-accent-foreground: #d1d4dc;
+  --sidebar-border: #2a2e39;
+  --sidebar-ring: #2962ff;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Meridian extensions (finance semantics not covered by shadcn) */
+  --color-faint: var(--text-3);
+  --color-up: var(--up);
+  --color-up-soft: var(--up-soft);
+  --color-dn: var(--dn);
+  --color-dn-soft: var(--dn-soft);
+  --color-amber: var(--amber);
+  --color-amber-soft: var(--amber-soft);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-serif: var(--font-serif);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* ============ Legacy Meridian variable names ============
+   dashboard.css, dashboard/charts.tsx and the landing mockup still read these;
+   aliasing them here means the whole app follows the theme above. Retire them
+   as pages are rebuilt on the token classes. */
+:root {
+  --bg: var(--background);
+  --surface: var(--card);
+  --surface-2: var(--muted);
+  --text: var(--foreground);
+  --text-2: var(--muted-foreground);
+  --text-3: color-mix(in srgb, var(--muted-foreground) 72%, var(--background));
+  --brand: var(--primary);
+  --brand-soft: color-mix(in srgb, var(--primary) 12%, var(--background));
+  --up: var(--chart-1);
+  --up-soft: color-mix(in srgb, var(--chart-1) 14%, var(--background));
+  --dn: var(--destructive);
+  --dn-soft: color-mix(in srgb, var(--destructive) 12%, var(--background));
+  --amber: var(--chart-3);
+  --amber-soft: color-mix(in srgb, var(--chart-3) 18%, var(--background));
+  --radius-sm: calc(var(--radius) - 2px);
+  --shadow: 0 1px 3px rgb(15 23 42 / 4%), 0 8px 24px rgb(15 23 42 / 4%);
+  --shadow-lg: 0 4px 12px rgb(15 23 42 / 6%), 0 24px 64px rgb(15 23 42 / 10%);
+}
+
+.dark {
+  --shadow: 0 1px 3px rgb(0 0 0 / 30%), 0 8px 24px rgb(0 0 0 / 30%);
+  --shadow-lg: 0 4px 12px rgb(0 0 0 / 40%), 0 24px 64px rgb(0 0 0 / 50%);
 }
 
 body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font-inter), -apple-system, sans-serif;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  letter-spacing: var(--letter-spacing);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
@@ -59,12 +179,12 @@ body {
 }
 
 @keyframes pulseBrand {
-  0% { box-shadow: 0 0 0 0 rgba(78, 79, 235, 0.45); }
-  70% { box-shadow: 0 0 0 6px rgba(78, 79, 235, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(78, 79, 235, 0); }
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 45%, transparent); }
+  70% { box-shadow: 0 0 0 6px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
 }
 @keyframes pulseGreen {
-  0% { box-shadow: 0 0 0 0 rgba(24, 158, 106, 0.4); }
-  70% { box-shadow: 0 0 0 6px rgba(24, 158, 106, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(24, 158, 106, 0); }
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--chart-1) 40%, transparent); }
+  70% { box-shadow: 0 0 0 6px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
 }

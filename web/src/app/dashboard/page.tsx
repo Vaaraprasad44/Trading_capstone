@@ -3,8 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { alphaHoldings, sipHoldings, swingClosed, swingOpen, type FundKey, type Holding } from "./data";
+import { alphaHoldings, computeHoldings, sipHoldings, swingClosed, swingOpen, type FundKey, type Holding } from "./data";
 import { AlphaView, Hero, SipView, StockDrawer, SwingView } from "./views";
+import { BreadthPanel } from "./BreadthCore";
+import { TickerTape } from "./TickerTape";
+import { AskAiSheet } from "./AskAiSheet";
 import "./dashboard.css";
 
 const FUNDS: { key: FundKey; label: string }[] = [
@@ -12,12 +15,6 @@ const FUNDS: { key: FundKey; label: string }[] = [
   { key: "sip", label: "Smart SIP" },
   { key: "swing", label: "Swing Trading" },
 ];
-
-// ponytail: alert() stands in for the copy-sizing assistant, as in the
-// prototype — wire to the Agent SDK runner when the AI phase lands.
-function ask(q: string) {
-  alert(`AI question (wired to LLM/Skill in real app):\n\n"${q}"`);
-}
 
 function drift(holdings: Holding[]): Holding[] {
   const t = Date.now() / 1000;
@@ -32,6 +29,11 @@ export default function Dashboard() {
   const [sip, setSip] = useState(sipHoldings);
   const [open, setOpen] = useState(swingOpen);
 
+  // Ask AI sheet: one common agent for the fund, opened from the table header
+  // button or any Ask box — not scoped to a single row
+  const [aiOpen, setAiOpen] = useState(false);
+  const [pendingQ, setPendingQ] = useState<{ text: string; id: number } | null>(null);
+
   // live price tick, as in the prototype
   useEffect(() => {
     const id = setInterval(() => {
@@ -42,17 +44,31 @@ export default function Dashboard() {
     return () => clearInterval(id);
   }, []);
 
-  // Esc closes the drill-down
+  // Esc closes the AI sheet and the drill-down drawer
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setStock(null);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setAiOpen(false);
+        setStock(null);
+      }
+    };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
   const openStock = useCallback((t: string) => setStock(t), []);
+  const openAi = useCallback(() => setAiOpen(true), []);
+
+  const ask = useCallback((q: string) => {
+    setAiOpen(true);
+    setPendingQ((p) => ({ text: q, id: (p?.id ?? 0) + 1 }));
+  }, []);
+
+  const fundHoldings = fund === "alpha" ? alpha : fund === "sip" ? sip : open;
+  const fundLabel = FUNDS.find((f) => f.key === fund)!.label;
 
   return (
-    <div className="dash">
+    <div className={"dash" + (aiOpen ? " ai-open" : "")}>
       <nav className="nav">
         <div className="wrap nav-inner">
           <Link className="logo" href="/">
@@ -73,9 +89,19 @@ export default function Dashboard() {
       </nav>
 
       <div className="wrap">
-        <Hero fund={fund} />
-        {fund === "alpha" && <AlphaView holdings={alpha} themeTick={themeTick} onOpen={openStock} onAsk={ask} />}
-        {fund === "sip" && <SipView holdings={sip} themeTick={themeTick} onOpen={openStock} onAsk={ask} />}
+        <div className="hero-row">
+          <div className="hero-col">
+            <Hero fund={fund} />
+            <TickerTape />
+          </div>
+          <BreadthPanel />
+        </div>
+        {fund === "alpha" && (
+          <AlphaView holdings={alpha} themeTick={themeTick} onOpen={openStock} onAsk={ask} onAskAi={openAi} />
+        )}
+        {fund === "sip" && (
+          <SipView holdings={sip} themeTick={themeTick} onOpen={openStock} onAsk={ask} onAskAi={openAi} />
+        )}
         {fund === "swing" && (
           <SwingView open={open} closed={swingClosed} themeTick={themeTick} onOpen={openStock} onAsk={ask} />
         )}
@@ -91,6 +117,15 @@ export default function Dashboard() {
         themeTick={themeTick}
         onClose={() => setStock(null)}
         onAsk={ask}
+      />
+
+      <AskAiSheet
+        open={aiOpen}
+        ticker={null}
+        holdings={computeHoldings(fundHoldings)}
+        fundLabel={fundLabel}
+        pending={pendingQ}
+        onClose={() => setAiOpen(false)}
       />
     </div>
   );
