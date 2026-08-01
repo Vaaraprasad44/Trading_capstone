@@ -160,7 +160,7 @@ Priorities: **P0** = v1 launch-blocking · **P1** = v1 if time permits, else v1.
 |----------|-------|----------|
 | Capstone bars #6/#7 (likely deploy + observability) — exact requirements | Founder | Before CAPSTONE-SPEC.md is finalized |
 | Securities attorney: does the v1 design (esp. the calculator framing + session-only inputs) stay in the publisher lane? | Founder + attorney | **Hard gate before launch** |
-| SnapTrade↔Robinhood connection reliability & sync cadence in practice | Eng (spike, week 1) | Before Epic 1 build |
+| SnapTrade↔Robinhood connection reliability & sync cadence in practice — see [SPIKE-SNAPTRADE.md](SPIKE-SNAPTRADE.md) (paper check done; live test with trader pending) | Eng (spike, week 1) | Before Epic 1 build |
 | Market-data & news MCP provider selection (defaults: Polygon/Alpha Vantage; NewsAPI) | Eng | Epic 4 start |
 | Drawdown threshold that triggers the comms flow (2.4) | Founder | Epic 2 build |
 
