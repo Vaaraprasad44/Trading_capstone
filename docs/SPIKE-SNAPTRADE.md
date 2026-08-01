@@ -1,6 +1,6 @@
 # Spike — SnapTrade ↔ Robinhood feed validation
 
-**Status**: paper check done (2026-07-25) · live test **not started** — waiting on trader
+**Status**: paper check done (2026-07-25) · live test **run 2026-08-01** against a real Robinhood connection (personal-flow key) — most questions answered, see §7; still pending: week-long stability (Q1), market-hours detection latency (Q4), webhooks (Q7)
 **Owner**: Eng (setup + analysis) · Trader (connection + test trades)
 **Companion to**: [PRD.md](PRD.md) §7 open questions, M1 milestone · [DB-SCHEMA.md](DB-SCHEMA.md) §5 open questions
 **Timebox**: ~1 hour setup, 1 week of observation, half a day of analysis.
@@ -71,16 +71,17 @@ Compare the trader's written log against `snaplog.jsonl` timestamps:
 3. Robinhood connection fundamentally flaky on aggregators → **manual-entry fallback** (founder's proposal, 2026-07-25): trader-entered trades on timestamped, append-only, immutable cards; market-data pricing computes P&L; verifiability = public unforgeable commitment ("can't backdate wins"). Honest trust downgrade, stated openly: **no omission detection** — the claim weakens from "this is my whole account" to "every published call tracked honestly." Schema impact: `broker_fills`/`reconciliations` idle; cards + `benchmark_prices` carry the record.
 4. Fallback 3 unacceptable for trust positioning → founder decision: migrate trading to an API-first broker (Alpaca / IBKR — true real-time fills, official APIs) at the cost of leaving Robinhood. Recorded as a v2 lever, not a v1 requirement.
 
-## 7. Findings (fill in after the live test)
+## 7. Findings (live test 2026-08-01, personal-flow key against a real Robinhood connection; market closed — Saturday)
 
-- **Q1 connection**: _pending_
-- **Q2 activities for Robinhood**: _pending_
-- **Q3 payload fields & timestamp granularity**: _pending_
-- **Q4 latency (orders lane / transactions lane / refresh effect)**: _pending_
-- **Q5 equity & balances**: _pending_
-- **Q6 non-trade activity typing**: _pending_
-- **Q7 webhooks & add-on pricing**: _pending_
-- **Verdict & design changes**: _pending_
+- **Q1 connection**: ✅ partial. Read-only Robinhood connection established via dashboard 2026-08-01 16:00Z; initial holdings sync completed within ~5 s of connection. One Robinhood login yields **two accounts under one `brokerage_authorization`** (Individual + Crypto). Week-long re-auth stability still _pending_ (needs the week).
+- **Q2 activities for Robinhood**: ✅ yes, richly — with one correction: the **global `/activities` endpoint is dead** (410 "no longer available for your account"); use per-account **`GET /accounts/{id}/activities`** (returns `{data: [...]}`, paginated). Robinhood Individual returned **years of history in one call** — hundreds of activities with BUY / SELL / DIVIDEND / REI / CONTRIBUTION all represented. ⚠️ **Robinhood Crypto returned 0 activities** — crypto transactions don't populate; fine for our equities-only funds, but don't plan on crypto data.
+- **Q3 payload fields & timestamp granularity**: ✅ everything `broker_fills` needs: unique `id`, signed `units`, `price`, `fee`, `amount`, `settlement_date`, `institution`, rich symbol object (FIGI, exchange). `trade_date` carries **second-level granularity on recent rows** (roughly a third of rows intraday-stamped) but **midnight-only on older history** — reconciliation matching must tolerate date-only stamps on backfill. `external_reference_id` is `null` on Robinhood. **New activity type not in the paper check: `REI` (dividend reinvestment)** — `activity_type` handling must map it (it's a buy that must not look like an unpublished trade).
+- **Q4 latency (orders lane / transactions lane / refresh effect)**: partial — market closed, so detection latency is _pending the next trading day_. But the recent-orders lane is confirmed **richer than hoped**: full lifecycle per order — `time_placed` / `time_updated` / `time_executed` (sub-second), `status` (`EXECUTED`, and `NONE` for a pending after-hours order), `limit_price`, **`execution_price`** — so stage-1 corroboration can price-check immediately, and placed-vs-filled is cleanly distinguishable (observed: an after-hours order carried a placed timestamp that evening and an executed timestamp at next market open). Transactions lane confirmed daily (`last_successful_sync` is date-only, `2026-07-31`). On-demand refresh not exercised (per-call charges).
+- **Q5 equity & balances**: ✅ **equity is reported directly** — `accounts[].balance.total` (dollar amount verified live against the Robinhood app) plus per-account `cash` and `buying_power` from `/balances`. → `fund_nav_daily` can be **ingested, not computed**. The one-account→three-funds split stays a publish-time tagging concern exactly as DB-SCHEMA §5 assumed (SnapTrade has no sub-accounts; fills carry no fund).
+- **Q6 non-trade activity typing**: ✅ typed in real data: `DIVIDEND`, `CONTRIBUTION`, `REI`. `FEE`/`WITHDRAWAL` absent from this account's history (documented on paper, untested live).
+- **Q7 webhooks & add-on pricing**: _pending_ — needs a public webhook receiver; do this when the reconciliation worker skeleton exists. Observed rate limit: **250 req/min**; 10-min polling floor per docs.
+- **Auth findings (new, unasked)**: personal-flow (`PERS-`) keys use the same HMAC request signing as partner keys, and **`userSecret` is not required** (empty string accepted) — one fewer secret for the MCP server to hold. ⚠️ The pypi `snaptrade-python-sdk` **mis-signs requests** (403 "credentials not provided") — the Portfolio MCP should sign manually (~15 lines, see spike's `snap.py`) rather than depend on the SDK.
+- **Verdict & design changes**: **GO** (provisional on Q1's quiet week + Q4's market-hours number). Build Epic 1 on SnapTrade. Changes: (1) ingest via per-account activities, not the dead global endpoint; (2) two-stage verification stands, and stage 1 gains a price check via `execution_price`; (3) map `REI` explicitly so dividend reinvestments don't trip omission detection; (4) matching tolerates date-only `trade_date` on historical backfill; (5) skip the SDK, sign manually.
 
 ## 8. Appendix — trader handoff text
 
