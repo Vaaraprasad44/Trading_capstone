@@ -7,7 +7,6 @@ import { computeSizing } from '@/lib/sizing'
 import { handle, json } from '@/lib/http'
 
 const DEMO_USER_ID = '00000000-0000-0000-0000-000000000001'
-const DISCLAIMER = 'Educational sizing math only — not financial advice. Past performance ≠ future results. Do your own research before investing.'
 
 const client = new Anthropic()
 
@@ -47,7 +46,7 @@ export const POST = handle(async (req: Request) => {
       session_id: sid,
       question_type,
       refused: true,
-      disclaimer: DISCLAIMER,
+      disclaimer: '',
     })
   }
 
@@ -115,7 +114,6 @@ Rules:
 - If sizing numbers are provided above, present them exactly — never recalculate. Present each number on its own line.
 - If no sizing context was provided but the user asks to be sized, ask for their capital amount.
 - Keep answers concise: 3-5 sentences for factual questions; a short breakdown for sizing questions.
-- End every response with exactly this line on its own: "${DISCLAIMER}"
 - Never say "I recommend", "you should", "this is a good trade", or any variant.`
 
   // ── LLM call ────────────────────────────────────────────────────────────
@@ -137,7 +135,7 @@ Rules:
     { role: 'assistant', content: text,           question_type, refused: false, skillInvoked: 'copy-sizing', methodologyId },
   ])
 
-  return json({ text, session_id: sid, question_type, refused: false, disclaimer: DISCLAIMER })
+  return json({ text, session_id: sid, question_type, refused: false, disclaimer: '' })
 })
 
 // ── Transcript logging — returns session id for client continuity ────────────

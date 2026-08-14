@@ -46,9 +46,6 @@ export function AskAiSheet({
   const [items, setItems] = useState<Item[]>([]);
   const [typing, setTyping] = useState(false);
   const [input, setInput] = useState("");
-  const [disclaimer, setDisclaimer] = useState(
-    "Educational sizing math only — not financial advice. Past performance ≠ future results."
-  );
   const sessionRef  = useRef<string | undefined>(undefined);
   const idRef       = useRef(1);
   const lastTickerRef   = useRef<string | null>(null);
@@ -101,7 +98,6 @@ export function AskAiSheet({
         await res.json();
 
       if (data.session_id) sessionRef.current = data.session_id;
-      if (data.disclaimer) setDisclaimer(data.disclaimer);
       push({ kind: "ai", text: data.text });
     } catch {
       push({ kind: "ai", text: "Something went wrong — please try again." });
@@ -200,7 +196,6 @@ export function AskAiSheet({
         />
         <button className="ai-send" onClick={() => submit(input)} disabled={typing} title="Send">↑</button>
       </div>
-      <div className="ai-note">{disclaimer}</div>
     </aside>
   );
 }

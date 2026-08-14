@@ -11,10 +11,48 @@
 // next cycle — schedule, manual feedback, and source events all change behavior.
 // Run modes: `npm run worker` (loop) · `npm run worker -- --once` (single cycle).
 import { pathToFileURL } from 'node:url'
+import Anthropic from '@anthropic-ai/sdk'
 import { db } from '../src/lib/db.js'
 import { runSync } from '../src/lib/feed.js'
 import { marketdata } from '../src/lib/marketdata.js'
 import { snaptrade, snaptradeConfigured } from '../src/lib/snaptrade.js'
+
+// ── Headless Skill runner (capstone Bar #5) ───────────────────────────────────
+// Mirrors the key-facts SKILL.md prompt. Refreshes ai_key_facts_cache for each
+// open trade card position once per worker cycle (skips if < 24 h old).
+const KEY_FACTS_SYSTEM =
+  'You are a stock research assistant for a swing trading fund. Write 3–5 bullet points about the given ticker covering: sector/industry context, most recent catalyst or price driver, a key technical level (support or resistance), and one forward-looking risk or opportunity. Plain text only. Each bullet starts with •. Keep the total response under 200 words.'
+const HAIKU = 'claude-haiku-4-5-20251001'
+
+async function runSkill(symbol: string): Promise<{ symbol: string; refreshed: boolean }> {
+  const instrument = await db.instruments.findUnique({ where: { symbol } })
+  if (!instrument) return { symbol, refreshed: false }
+
+  const cached = await db.ai_key_facts_cache.findUnique({ where: { instrument_id: instrument.id } })
+  if (cached && Date.now() - cached.generated_at.getTime() < 24 * 3600e3) return { symbol, refreshed: false }
+
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) return { symbol, refreshed: false }
+
+  const client = new Anthropic({ apiKey })
+  const msg = await client.messages.create({
+    model: HAIKU,
+    max_tokens: 256,
+    system: KEY_FACTS_SYSTEM,
+    messages: [{ role: 'user', content: `Ticker: ${symbol}. Today: ${new Date().toISOString().slice(0, 10)}.` }],
+  })
+  const content_md = msg.content
+    .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+    .map((b) => b.text)
+    .join('')
+
+  await db.ai_key_facts_cache.upsert({
+    where: { instrument_id: instrument.id },
+    create: { instrument_id: instrument.id, content_md, model: HAIKU },
+    update: { content_md, model: HAIKU, generated_at: new Date() },
+  })
+  return { symbol, refreshed: true }
+}
 
 const DEFAULTS = { poll_minutes: 10, sync_every_hours: 6, price_tolerance_pct: 2, window_hours: 48 }
 
@@ -116,6 +154,14 @@ export async function cycle(trigger: string) {
     const equity = await equitySnapshot()
     summary.equity = equity
     if (summary.stage2) summary.daily = await writeDaily(equity)
+    // Refresh key-facts for open positions (Bar #5: headless Skill runner)
+    const openCards = await db.trade_cards.findMany({
+      where: { status: 'published' },
+      include: { instruments: { select: { symbol: true } } },
+    })
+    summary.skills = await Promise.all(
+      openCards.filter((c) => c.instruments?.symbol).map((c) => runSkill(c.instruments!.symbol)),
+    )
     await db.agent_runs.update({
       where: { id: run.id },
       data: { status: 'ok', finished_at: new Date(), summary: JSON.parse(JSON.stringify(summary)) },
