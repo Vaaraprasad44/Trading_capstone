@@ -42,7 +42,8 @@ async function cached<T>(key: string, ttlMs: number, fn: () => Promise<T>): Prom
 }
 
 async function chart(symbol: string, range: string, interval = '1d'): Promise<ChartResult> {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${range}&interval=${interval}`
+  const ySymbol = symbol.replace('.', '-') // Yahoo writes class shares as BRK-B, not BRK.B
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ySymbol)}?range=${range}&interval=${interval}`
   const res = await fetch(url, { headers: UA })
   if (!res.ok) throw new Error(`yahoo chart ${symbol} ${res.status}`)
   const body = (await res.json()) as { chart: { result: ChartResult[] | null; error: { description?: string } | null } }

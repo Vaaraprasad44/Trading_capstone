@@ -61,6 +61,13 @@ const canned: Record<string, unknown> = {
       order_type: 'Market', time_placed: iso(HOUR), time_executed: null }, // not executed → ignored
   ],
   '/accounts/acct-1/balances': [{ cash: 111.11, buying_power: 110.0 }],
+  '/accounts/acct-1/positions/all': {
+    results: [
+      { instrument: { kind: 'etf', symbol: 'VOO', raw_symbol: 'VOO', description: 'Test S&P 500 ETF' }, units: '2.5', price: '500.00', cost_basis: '1200.00', currency: 'USD' },
+      { instrument: { kind: 'stock', symbol: 'MRK', raw_symbol: 'MRK', description: 'Test Pharma' }, units: '5', price: '130.00', cost_basis: '667.50', currency: 'USD' },
+      { instrument: null, units: null, price: null, cost_basis: null, currency: null },
+    ],
+  },
 }
 
 // canned Yahoo chart payload (marketdata module) — fictional values
@@ -268,6 +275,23 @@ await seed(db, { demo: false })
   assert.equal((await publish(sept)).status, 409, 'published plan is immutable — no second publish for the month')
   assert.equal((await publish({ ...sept, breakdown: [] })).status, 400, 'empty breakdown rejected')
   console.log('✓ activity route; plan publish + immutability')
+}
+
+// ---- 7b. holdings route: broker positions + plan membership + day% ----
+{
+  const { GET: holdingsGet } = await import('../src/app/api/holdings/route.js')
+  const res = await holdingsGet(new Request('http://test/api/holdings'), {})
+  assert.equal(res.status, 200)
+  const rows = await res.json()
+  assert.equal(rows.length, 2, 'null-unit rows dropped')
+  const voo = rows.find((r: { symbol: string }) => r.symbol === 'VOO')
+  assert.equal(voo.qty, 2.5)
+  assert.equal(voo.avg, 480.0, 'avg = total cost_basis / units')
+  assert.equal(voo.open_pnl, 50.0, 'P&L computed from price vs cost basis')
+  assert.equal(voo.in_plan, true, 'VOO is in the published plan')
+  assert.equal(rows.find((r: { symbol: string }) => r.symbol === 'MRK').in_plan, false)
+  assert.ok(voo.dayPct != null, 'day% merged from market data')
+  console.log('✓ holdings route: positions merged with plan membership and day%')
 }
 
 // ---- 8. worker daily bookkeeping: benchmark + whole-account NAV ----

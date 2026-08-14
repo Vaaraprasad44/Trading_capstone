@@ -60,12 +60,15 @@ export type SnapOrder = {
   time_executed: string | null
 }
 
+// NOTE: the older /positions and /holdings endpoints are 410-gone on newer
+// accounts — /positions/all is the live one. Numerics arrive as strings;
+// cost_basis is the TOTAL cost of the lot, not per-share.
 export type SnapPosition = {
-  symbol: { symbol: { symbol: string; raw_symbol: string; description?: string } }
-  units: number | null
-  price: number | null
-  open_pnl: number | null
-  average_purchase_price: number | null
+  instrument: { kind: string; symbol: string; raw_symbol: string; description: string | null } | null
+  units: string | null
+  price: string | null
+  cost_basis: string | null
+  currency: string | null
 }
 
 export type SnapAccount = {
@@ -82,7 +85,10 @@ export type SnapAccount = {
 export const snaptrade = {
   listAccounts: () => call<SnapAccount[]>('/accounts'),
   getBalances: () => call<{ cash: number; buying_power: number }[]>(`/accounts/${account()}/balances`),
-  getPositions: () => call<SnapPosition[]>(`/accounts/${account()}/positions`),
+  getPositions: async () => {
+    const res = await call<{ results: SnapPosition[] }>(`/accounts/${account()}/positions/all`)
+    return res.results
+  },
   getOrders: () => call<SnapOrder[]>(`/accounts/${account()}/orders`),
   // NOTE: the global /activities endpoint is 410-gone; per-account is the live one.
   getActivities: async (startDate: string, endDate: string) => {
