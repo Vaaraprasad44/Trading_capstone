@@ -63,9 +63,26 @@ const canned: Record<string, unknown> = {
   '/accounts/acct-1/balances': [{ cash: 111.11, buying_power: 110.0 }],
 }
 
+// canned Yahoo chart payload (marketdata module) — fictional values
+const yahooChart = {
+  chart: {
+    result: [{
+      meta: { symbol: 'SPY', longName: 'Test S&P 500 ETF', regularMarketPrice: 645.5, chartPreviousClose: 640.0,
+        fiftyTwoWeekHigh: 700.1, fiftyTwoWeekLow: 500.2 },
+      timestamp: [1754352000, 1754438400, 1754524800], // 2025-08-05..07 UTC days
+      indicators: { quote: [{ close: [630.25, null, 645.5] }] },
+    }],
+    error: null,
+  },
+}
+
 let lastRequest: { path: string; query: string; signature: string } | null = null
 globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
   const url = new URL(String(input instanceof Request ? input.url : input))
+  if (url.origin === 'https://query1.finance.yahoo.com') {
+    assert.match(url.pathname, /^\/v8\/finance\/chart\//)
+    return new Response(JSON.stringify(yahooChart), { status: 200, headers: { 'content-type': 'application/json' } })
+  }
   assert.equal(url.origin, 'https://api.snaptrade.com', `unexpected fetch target: ${url}`)
   const path = url.pathname.replace('/api/v1', '')
   const headers = new Headers(input instanceof Request ? input.headers : init?.headers)
@@ -78,7 +95,8 @@ globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) =>
 const { db } = await import('../src/lib/db.js')
 const { snaptrade, snaptradeConfigured } = await import('../src/lib/snaptrade.js')
 const { runSync, mapActivity } = await import('../src/lib/feed.js')
-const { plan, checkOrders, cycle } = await import('./worker.mjs')
+const { marketdata } = await import('../src/lib/marketdata.js')
+const { plan, checkOrders, cycle, writeDaily } = await import('./worker.mjs')
 
 await seed(db, { demo: false })
 
@@ -206,6 +224,66 @@ await seed(db, { demo: false })
   assert.equal(hooked.status, 200)
   assert.equal((await hooked.json()).sync.trigger, 'webhook', 'valid webhook triggers a sync')
   console.log('✓ sync 503 guard; webhook: off / bad secret / ignored event / real sync')
+}
+
+// ---- 6. market data: quote + closes parsing, quotes route ----
+{
+  const q = await marketdata.getQuote('SPY')
+  assert.equal(q.price, 645.5)
+  assert.ok(q.dayPct && Math.abs(q.dayPct - 0.859) < 0.01, 'day% from previous close')
+  assert.equal(q.wk52High, 700.1)
+
+  const closes = await marketdata.getDailyCloses('SPY', '1mo')
+  assert.equal(closes.length, 2, 'null closes dropped')
+  assert.deepEqual(closes[0], { date: '2025-08-05', close: 630.25 })
+
+  const { GET: quotesGet } = await import('../src/app/api/quotes/route.js')
+  const res = await quotesGet(new Request('http://test/api/quotes?symbols=spy,QQQ'), {})
+  assert.equal(res.status, 200)
+  const body = await res.json()
+  assert.equal(body.length, 2)
+  assert.equal(body[0].price, 645.5)
+  console.log('✓ market data: chart parsing, cache, quotes route')
+}
+
+// ---- 7. activity + plan-publish routes ----
+{
+  const { GET: activityGet } = await import('../src/app/api/activity/route.js')
+  const res = await activityGet(new Request('http://test/api/activity?type=trade&limit=5'), {})
+  const acts = await res.json()
+  assert.ok(acts.length >= 2, 'trades present from earlier sync')
+  assert.ok(acts.every((a: { activity_type: string }) => a.activity_type === 'trade'))
+  assert.ok(acts[0].verification, 'each row carries a verification status')
+
+  const { POST: planPost } = await import('../src/app/api/funds/[code]/sip-plan/route.js')
+  const publish = (body: unknown) =>
+    planPost(
+      new Request('http://test/api/funds/sip/sip-plan', {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+      }),
+      { params: Promise.resolve({ code: 'sip' }) },
+    )
+  const sept = { month: '2026-09-01', plan_md: 'Sept: keep DCA.', breakdown: [{ symbol: 'VOO', pct: 100 }] }
+  assert.equal((await publish(sept)).status, 201, 'plan publishes')
+  assert.equal((await publish(sept)).status, 409, 'published plan is immutable — no second publish for the month')
+  assert.equal((await publish({ ...sept, breakdown: [] })).status, 400, 'empty breakdown rejected')
+  console.log('✓ activity route; plan publish + immutability')
+}
+
+// ---- 8. worker daily bookkeeping: benchmark + whole-account NAV ----
+{
+  process.env.SNAPTRADE_ACCOUNT_ID = 'acct-1'
+  const daily = await writeDaily([{ id: 'acct-1', account: 'Robinhood Individual', equity: 7500.25 }])
+  assert.equal(daily.nav, 7500.25)
+  assert.equal(await db.benchmark_prices.count({ where: { symbol: 'SPY' } }), 2, 'SPY closes upserted')
+  const sip = await db.funds.findUniqueOrThrow({ where: { code: 'sip' } })
+  const nav = await db.fund_nav_daily.findFirstOrThrow({ where: { fund_id: sip.id } })
+  assert.equal(Number(nav.nav), 7500.25)
+  assert.equal(Number(nav.cash), 111.11, 'cash from balances')
+  assert.equal(Number(nav.invested), 100, 'invested = positive transfers')
+  await writeDaily([{ id: 'acct-1', account: 'x', equity: 7600 }])
+  assert.equal(Number((await db.fund_nav_daily.findFirstOrThrow({ where: { fund_id: sip.id } })).nav), 7600, 'same-day upsert')
+  console.log('✓ worker daily: SPY benchmark ingest, NAV upsert')
 }
 
 // mapActivity edge already covered in test-feed-map.mts; keep one integration sanity here
