@@ -1,0 +1,85 @@
+/* Daily AI + Markets briefing page. Same deep-space glass palette as the
+   dashboard, namespaced under .brief so nothing leaks. Article-column layout;
+   content is placeholder until the headless briefing agent publishes real data. */
+
+.brief {
+  min-height: 100vh;
+  padding-bottom: 90px;
+  background-image: radial-gradient(120% 90% at 50% -10%, #221244 0%, #140a26 48%, #0a0614 100%);
+  background-attachment: fixed;
+  color: var(--text);
+  --bg: #0d0818;
+  --surface: rgba(232, 234, 242, 0.06);
+  --surface-2: rgba(232, 234, 242, 0.09);
+  --text: #f2f4f8;
+  --text-2: rgba(232, 234, 242, 0.65);
+  --text-3: rgba(232, 234, 242, 0.45);
+  --border: rgba(232, 234, 242, 0.14);
+  --border-faint: rgba(232, 234, 242, 0.08);
+  --shadow: none;
+  --brand-soft: rgba(41, 98, 255, 0.22);
+  --up: #00e694;
+  --dn: #ff5b6e;
+  --up-soft: rgba(0, 230, 148, 0.14);
+  --dn-soft: rgba(255, 91, 110, 0.14);
+}
+/* nav parity with the dashboard shell (article column is capped separately) */
+.brief .wrap { max-width: 1640px; }
+
+/* ===== nav — same shell as the dashboard nav ===== */
+.brief .nav { background: rgba(13, 8, 24, 0.75); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50; }
+.brief .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+.brief .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; color: var(--text); text-decoration: none; }
+.brief .logo-mark { width: 32px; height: 32px; border-radius: 9px; background: var(--brand); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 16px; }
+.brief .nav-right { display: flex; align-items: center; gap: 14px; }
+.brief .back-link { color: var(--text-2); font-size: 13px; font-weight: 500; text-decoration: none; border: 1px solid var(--border); background: var(--surface); border-radius: 9px; padding: 7px 13px; }
+.brief .back-link:hover { color: var(--text); border-color: var(--brand); }
+.brief .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--brand-soft); color: var(--brand); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; }
+
+/* ===== article column ===== */
+.brief .article { max-width: 780px; margin: 0 auto; padding: 38px 24px 0; }
+.brief .crumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-3); margin-bottom: 14px; }
+.brief .status-pill { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: var(--up-soft); color: var(--up); }
+.brief h1 { font-size: 27px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.25; margin-bottom: 18px; }
+.brief .article p { font-size: 15px; line-height: 1.7; color: var(--text-2); margin: 0 0 14px; }
+.brief .article p b { color: var(--text); font-weight: 600; }
+.brief .article h2 { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.35; margin: 30px 0 10px; }
+
+/* source chips, like citation pills under each story */
+.brief .src-row { display: flex; flex-wrap: wrap; gap: 6px; margin: -4px 0 18px; }
+.brief .src { display: inline-flex; align-items: center; font-size: 10.5px; font-weight: 600; color: var(--text-3); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 2px 9px; }
+
+/* ===== featured stock quote card ===== */
+.brief .fc { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); backdrop-filter: blur(8px); padding: 18px 20px; margin: 6px 0 26px; }
+.brief .fc-name { font-size: 13px; color: var(--text-2); font-weight: 500; }
+.brief .fc-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-top: 4px; }
+.brief .fc-price { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.brief .fc-chg { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.brief .fc-chg .asof { color: var(--text-3); font-weight: 500; margin-left: 6px; }
+.brief .fc-ah { font-size: 12.5px; color: var(--text-2); margin-top: 2px; font-variant-numeric: tabular-nums; }
+.brief .t-up { color: var(--up); }
+.brief .t-dn { color: var(--dn); }
+.brief .fc-ranges { display: inline-flex; background: var(--surface-2); border-radius: 9px; padding: 3px; gap: 2px; }
+.brief .fc-ranges button { border: none; background: transparent; color: var(--text-2); font: inherit; font-size: 11.5px; font-weight: 600; padding: 5px 10px; border-radius: 6px; cursor: pointer; }
+.brief .fc-ranges button:hover { color: var(--text); }
+.brief .fc-ranges button.on { background: rgba(232, 234, 242, 0.18); color: var(--text); }
+.brief .fc-chart { position: relative; height: 260px; margin-top: 14px; }
+.brief .fc-stats { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, auto); grid-auto-flow: column; column-gap: 28px; margin-top: 16px; border-top: 1px solid var(--border); padding-top: 6px; }
+.brief .fc-stat { display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; padding: 8px 0; border-bottom: 1px solid var(--border-faint); }
+.brief .fc-stat:nth-of-type(3n) { border-bottom: none; }
+.brief .fc-stat span { color: var(--text-3); }
+.brief .fc-stat b { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ===== bottom line callout ===== */
+.brief .bottom { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--brand); border-radius: var(--radius); backdrop-filter: blur(8px); padding: 16px 20px; margin-top: 30px; }
+.brief .bottom h2 { margin: 0 0 8px; font-size: 15px; }
+.brief .bottom p { margin: 0; }
+
+.brief .foot { text-align: center; color: var(--text-3); font-size: 12px; margin-top: 36px; padding: 0 24px; }
+
+@media (max-width: 640px) {
+  .brief h1 { font-size: 22px; }
+  .brief .fc-stats { grid-template-columns: 1fr; grid-auto-flow: row; }
+  .brief .fc-stat:nth-of-type(3n) { border-bottom: 1px solid var(--border-faint); }
+  .brief .fc-stat:last-of-type { border-bottom: none; }
+}

@@ -22,6 +22,7 @@
   --dn: #ff5b6e;
   --up-soft: rgba(0, 230, 148, 0.14);
   --dn-soft: rgba(255, 91, 110, 0.14);
+  --popover: rgba(15, 10, 26, 0.96);
 }
 .dash .card { backdrop-filter: blur(8px); }
 
@@ -39,7 +40,7 @@
 .ai-scope { font-size: 11px; font-weight: 600; color: #2962ff; background: rgba(41, 98, 255, 0.16); border-radius: 6px; padding: 2px 8px; }
 .ai-icon-btn { width: 30px; height: 30px; border: none; border-radius: 8px; background: transparent; color: rgba(232, 234, 242, 0.6); font-size: 14px; cursor: pointer; }
 .ai-icon-btn:hover { background: rgba(232, 234, 242, 0.1); color: #f2f4f8; }
-.ai-body { flex: 1; overflow-y: auto; padding: 8px 18px; }
+.ai-sheet .ai-body { flex: 1; overflow-y: auto; padding: 8px 18px; }
 .ai-hi { margin-top: 28vh; }
 .ai-hi h2 { font-size: 30px; font-weight: 700; }
 .ai-hi p { color: rgba(232, 234, 242, 0.65); font-size: 14px; margin: 8px 0 18px; }
@@ -141,6 +142,50 @@
 .dash .holdings-grid { padding: 0 10px 10px; }
 .dash .holdings-grid .ag-row { cursor: pointer; }
 
+/* ===== inline key-metrics detail row (Alpha holdings) =====
+   Screener-style 3×3 label/value grid injected as a full-width row under the
+   clicked holding; brand left border ties it to its parent row. */
+.dash .mp { height: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 8px; padding: 12px 18px 14px; background: color-mix(in srgb, var(--brand) 5%, transparent); border-left: 2px solid var(--brand); cursor: pointer; overflow-y: auto; }
+.dash .mp-head { display: flex; align-items: baseline; gap: 8px; font-size: 11px; font-weight: 700; color: var(--text-2); letter-spacing: 0.05em; text-transform: uppercase; }
+.dash .mp-head b { font-size: 13px; color: var(--text); letter-spacing: 0; }
+.dash .mp-src { font-weight: 500; color: var(--text-3); text-transform: none; letter-spacing: 0; }
+.dash .mp-hint { margin-left: auto; border: none; background: transparent; font: inherit; font-size: 11px; font-weight: 500; color: var(--text-3); text-transform: none; letter-spacing: 0; cursor: pointer; padding: 2px 7px; border-radius: 6px; }
+.dash .mp-hint:hover { background: var(--surface-2); color: var(--text); }
+.dash .mp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 20px; }
+.dash .mp-cell { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 13px; padding: 7px 12px; border-radius: 8px; }
+/* stripe every other metric row (cells flow 3-up), like the reference layout */
+.dash .mp-cell:nth-child(6n + 4), .dash .mp-cell:nth-child(6n + 5), .dash .mp-cell:nth-child(6n + 6) { background: var(--surface-2); }
+.dash .mp-cell .k { color: var(--text-2); }
+.dash .mp-cell .v { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* kebab actions column + dropdown */
+.dash .kebab-btn { width: 28px; height: 28px; border: none; border-radius: 7px; background: transparent; color: var(--text-2); font-size: 15px; font-weight: 700; line-height: 1; cursor: pointer; }
+.dash .kebab-btn:hover { background: var(--surface-2); color: var(--text); }
+.dash .kebab-cell { display: flex; align-items: center; justify-content: center; padding: 0; }
+/* header label is for screen readers only */
+.dash .kebab-head .ag-header-cell-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+/* z 85: above the ai-sheet (80), below the drawer scrim (90) */
+.dash .kebab-menu { position: fixed; z-index: 85; min-width: 200px; background: var(--popover); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 10px; padding: 5px; display: flex; flex-direction: column; gap: 2px; box-shadow: var(--shadow-lg); }
+.dash .kebab-menu button { border: none; background: transparent; color: var(--text); font: inherit; font-size: 12.5px; font-weight: 500; text-align: left; padding: 8px 11px; border-radius: 7px; cursor: pointer; white-space: nowrap; }
+.dash .kebab-menu button:hover, .dash .kebab-menu button:focus-visible { background: var(--surface-2); }
+.dash .kebab-sep { height: 1px; background: var(--border); margin: 4px 8px; }
+
+/* community activity card (replaces the Alpha ask box) */
+.dash .ca-item { display: flex; gap: 11px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.dash .ca-item:last-child { border-bottom: none; padding-bottom: 4px; }
+.dash .ca-av { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--primary-foreground); flex-shrink: 0; }
+.dash .ca-main { flex: 1; min-width: 0; }
+.dash .ca-meta { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 11.5px; color: var(--text-3); }
+.dash .ca-user { font-size: 12.5px; font-weight: 600; color: var(--text); }
+.dash .ca-tkr { font-size: 10.5px; font-weight: 700; color: var(--brand); background: var(--brand-soft); border-radius: 5px; padding: 1px 7px; }
+.dash a.ca-tkr:hover { text-decoration: none; }
+.dash .ca-senti { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; padding: 1px 6px; border-radius: 4px; }
+.dash .ca-senti.bullish { background: var(--up-soft); color: var(--up); }
+.dash .ca-senti.bearish { background: var(--dn-soft); color: var(--dn); }
+.dash .ca-senti.neutral { background: var(--surface-2); color: var(--text-2); }
+.dash .ca-text { font-size: 13px; color: var(--text-2); line-height: 1.5; margin-top: 3px; }
+.dash .ca-foot { font-size: 11px; color: var(--text-3); margin-top: 4px; }
+
 .dash .kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; padding: 18px; }
 .dash .kpi { text-align: left; }
 .dash .kpi + .kpi { border-left: 1px solid var(--border); padding-left: 18px; }
@@ -158,6 +203,18 @@
 .dash .ai-body .tag { font-size: 11px; font-weight: 700; color: var(--brand); letter-spacing: 0.04em; text-transform: uppercase; }
 .dash .ai-body .msg { font-size: 14px; color: var(--text); margin-top: 2px; }
 .dash .ai-cta { color: var(--brand); font-size: 13px; font-weight: 600; white-space: nowrap; }
+
+/* Daily AI briefing strip — an .ai-strip rendered as a link to /briefing.
+   Keeps the strip gradient but must undo the .dash a link styling. */
+.dash .news-strip { color: var(--text); }
+.dash .news-strip:hover { text-decoration: none; border-color: color-mix(in srgb, var(--brand) 55%, transparent); }
+.dash .nb-new { display: inline-block; margin-left: 8px; font-size: 9px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--primary-foreground); background: var(--brand); padding: 1px 7px; border-radius: 5px; animation: pulseBrand 2s infinite; }
+.dash .nb-headline { animation: nb-fade 0.45s ease; }
+@keyframes nb-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .dash .nb-headline, .dash .nb-new { animation: none; } }
+.dash .nb-movers { display: flex; gap: 8px; flex-shrink: 0; }
+.dash .nb-movers .pill { margin-top: 0; }
+@media (max-width: 1100px) { .dash .nb-movers { display: none; } }
 
 .dash .cash-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; padding: 18px; }
 .dash .cash-cell { background: var(--surface-2); border-radius: var(--radius-sm); padding: 14px 16px; }
