@@ -1,7 +1,36 @@
 import { z } from 'zod'
 import { db } from '@/lib/db'
-import { Ticker } from '@/lib/domain'
-import { handle, json } from '@/lib/http'
+import { entryVerification, FundCode, Ticker } from '@/lib/domain'
+import { handle, json, query } from '@/lib/http'
+
+// Cross-fund card list — admin (includes drafts) and subscriber feed
+export const GET = handle(async (req: Request) => {
+  const q = z.object({
+    fund: FundCode.optional(),
+    status: z.enum(['draft', 'published', 'closed']).optional(),
+  }).parse(query(req))
+
+  const where: Record<string, unknown> = {}
+  if (q.fund) {
+    const fund = await db.funds.findUniqueOrThrow({ where: { code: q.fund } })
+    where.fund_id = fund.id
+  }
+  if (q.status) {
+    where.status = q.status
+  }
+
+  const cards = await db.trade_cards.findMany({
+    where,
+    orderBy: { published_at: 'desc' },
+    include: {
+      instruments: true,
+      funds: { select: { code: true, name: true } },
+      reconciliations: { select: { kind: true, status: true } },
+      trade_card_events: { orderBy: { created_at: 'asc' } },
+    },
+  })
+  return json(cards.map((c) => ({ ...c, entry_verification: entryVerification(c.reconciliations) })))
+})
 
 const CreateCard = z
   .object({

@@ -98,7 +98,7 @@ export default function Dashboard() {
         open={aiOpen}
         ticker={null}
         holdings={computeHoldings(open)}
-        fundLabel="Swing Trading Fund"
+        fund="swing"
         pending={pendingQ}
         onClose={() => setAiOpen(false)}
       />
