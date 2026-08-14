@@ -272,6 +272,7 @@ await seed(db, { demo: false })
 
 // ---- 8. worker daily bookkeeping: benchmark + whole-account NAV ----
 {
+  process.env.SNAPTRADE_ACCOUNT_ID = 'acct-1'
   const daily = await writeDaily([{ id: 'acct-1', account: 'Robinhood Individual', equity: 7500.25 }])
   assert.equal(daily.nav, 7500.25)
   assert.equal(await db.benchmark_prices.count({ where: { symbol: 'SPY' } }), 2, 'SPY closes upserted')
