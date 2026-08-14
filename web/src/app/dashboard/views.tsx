@@ -1,6 +1,9 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import Link from "next/link";
+import { banner } from "@/app/briefing/data";
+import { recentCommunity } from "@/app/stock/data";
 import {
   COLORS,
   HERO,
@@ -56,13 +59,64 @@ function AiStrip({ tag, msg, fund, onAsk }: { tag: string; msg: string; fund: Fu
   );
 }
 
-function AiHint() {
+/* Daily AI briefing strip: teases the top stories of the day and clicks
+   through to /briefing. Content comes from the same placeholder data the
+   briefing page renders (later: the headless briefing agent's daily output). */
+function BriefingStrip() {
+  const [i, setI] = useState(0);
+  const [paused, setPaused] = useState(false);
+  // headline carousel: paused on hover/focus, skipped under reduced motion
+  useEffect(() => {
+    if (paused || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const id = setInterval(() => setI((v) => (v + 1) % banner.headlines.length), 6000);
+    return () => clearInterval(id);
+  }, [paused]);
+  return (
+    <Link
+      href="/briefing"
+      className="ai-strip news-strip"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+    >
+      <div className="ai-ico">📰</div>
+      <div className="ai-body">
+        <div className="tag">
+          {banner.tag} · {banner.dateShort} · {banner.storyCount} stories <span className="nb-new">New</span>
+        </div>
+        <div className="msg nb-headline" key={i}>
+          {banner.headlines[i]}
+        </div>
+      </div>
+      <div className="nb-movers">
+        {banner.movers.map((m) => (
+          <span key={m.ticker} className={"pill " + (m.chg >= 0 ? "up" : "dn")}>
+            {m.ticker} {m.chg >= 0 ? "+" : ""}
+            {m.chg.toFixed(1)}%
+          </span>
+        ))}
+      </div>
+      <div className="ai-cta">Read the briefing →</div>
+    </Link>
+  );
+}
+
+function AiHint({ detail = false }: { detail?: boolean }) {
   return (
     <div className="ai-hint">
       <span className="ai-hint-ico">⚡</span>
-      <span>
-        <b>Click any row</b> to open AI-powered insights — fundamentals, AI-ranked news &amp; key facts for that stock.
-      </span>
+      {detail ? (
+        <span>
+          <b>Click any row</b> to expand its key metrics in place — the <b>⋮ menu</b> opens financials, news, notes
+          &amp; community for that stock.
+        </span>
+      ) : (
+        <span>
+          <b>Click any row</b> to open AI-powered insights — fundamentals, AI-ranked news &amp; key facts for that
+          stock.
+        </span>
+      )}
     </div>
   );
 }
@@ -93,6 +147,47 @@ function AskBox({ onAsk }: { onAsk: Ask }) {
         <span className="chip" onClick={() => onAsk("Which holdings are beating the market?")}>Beating the market?</span>
         <span className="chip" onClick={() => onAsk("Summarize this month's activity.")}>Summarize this month</span>
       </div>
+    </div>
+  );
+}
+
+/* Recent community comments across the fund's stocks — replaces the Alpha
+   ask box next to Recent buy & sell; each ticker links to that stock's
+   community page. */
+function CommunityActivity() {
+  const items = recentCommunity();
+  return (
+    <div className="card card-pad">
+      <div className="section-head">
+        <h2>Community activity</h2>
+        <span className="muted">what traders are saying</span>
+      </div>
+      {items.map((c, i) => (
+        <div className="ca-item" key={i}>
+          <div className="ca-av" style={{ background: c.color }}>
+            {c.user
+              .split(" ")
+              .map((w) => w[0])
+              .join("")
+              .slice(0, 2)}
+          </div>
+          <div className="ca-main">
+            <div className="ca-meta">
+              <span className="ca-user">{c.user}</span>
+              <Link className="ca-tkr" href={`/stock/${c.ticker}/community`}>
+                {c.ticker}
+              </Link>
+              <span className={"ca-senti " + c.sentiment.toLowerCase()}>{c.sentiment}</span>
+              <span>{c.time}</span>
+            </div>
+            <div className="ca-text">{c.text}</div>
+            <div className="ca-foot">
+              ♥ {c.likes} · ↩ {c.replies} replies ·{" "}
+              <Link href={`/stock/${c.ticker}/community`}>join the discussion →</Link>
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -142,11 +237,14 @@ function AllocationCard({ holdings, unit, themeTick }: { holdings: ComputedHoldi
 
 /* ============ holdings table (AG Grid) ============ */
 
-function HoldingsTable({ holdings, title, onOpen, onAskAi }: {
+function HoldingsTable({ holdings, title, onOpen, onAskAi, detail, onAsk }: {
   holdings: ComputedHolding[];
   title: string;
   onOpen: OpenStock;
   onAskAi: () => void;
+  /** row click expands inline key metrics; drawer moves to the ⋮ menu */
+  detail?: boolean;
+  onAsk?: Ask;
 }) {
   const [filter, setFilter] = useState("");
 
@@ -172,8 +270,8 @@ function HoldingsTable({ holdings, title, onOpen, onAskAi }: {
           />
         </div>
       </div>
-      <AiHint />
-      <HoldingsGrid holdings={holdings} filter={filter} onOpen={onOpen} />
+      <AiHint detail={detail} />
+      <HoldingsGrid holdings={holdings} filter={filter} onOpen={onOpen} detail={detail} onAsk={onAsk} />
     </div>
   );
 }
@@ -206,12 +304,7 @@ export function AlphaView({ holdings, themeTick, onOpen, onAsk, onAskAi }: { hol
           <Kpi label="Net P&L" value={"+" + usd(net)} pill={pct((net / invested) * 100)} up />
         </div>
       </div>
-      <AiStrip
-        tag="Daily AI briefing"
-        msg="NVDA is your largest position and a top gainer; NVO (-27.6%) is the weakest holding and worth a thesis review. Tech concentration is above 60%."
-        fund="alpha"
-        onAsk={onAsk}
-      />
+      <BriefingStrip />
       <div className="card section">
         <div className="card-pad" style={{ paddingBottom: 0 }}>
           <div className="section-head">
@@ -255,7 +348,7 @@ export function AlphaView({ holdings, themeTick, onOpen, onAsk, onAskAi }: { hol
         </div>
         <AllocationCard holdings={H} unit="positions" themeTick={themeTick} />
       </div>
-      <HoldingsTable holdings={H} title="Stock holdings" onOpen={onOpen} onAskAi={onAskAi} />
+      <HoldingsTable holdings={H} title="Stock holdings" onOpen={onOpen} onAskAi={onAskAi} detail onAsk={onAsk} />
       <div className="section cols">
         <div className="card card-pad">
           <div className="section-head">
@@ -263,7 +356,7 @@ export function AlphaView({ holdings, themeTick, onOpen, onAsk, onAskAi }: { hol
           </div>
           <ActivityList />
         </div>
-        <AskBox onAsk={onAsk} />
+        <CommunityActivity />
       </div>
     </>
   );

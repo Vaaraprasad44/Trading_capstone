@@ -111,6 +111,9 @@ export type StockInfo = {
   div: string;
   hi: string;
   lo: string;
+  roce: string;
+  roe: string;
+  beta: string;
   facts: string[];
   news: { r: "high" | "med" | "low"; h: string; s: string }[];
 };
@@ -118,6 +121,7 @@ export type StockInfo = {
 const STOCK_INFO: Record<string, StockInfo> = {
   NVDA: {
     sector: "Semiconductors", mcap: "2.15T", pe: "58.4", eps: "3.30", div: "0.02%", hi: "195.95", lo: "86.62",
+    roce: "61.2%", roe: "91.5%", beta: "1.68",
     facts: [
       "Data-center revenue grew ~150% YoY on AI accelerator demand; Blackwell ramp is the next catalyst.",
       "Gross margins near 75% — among the highest in large-cap tech.",
@@ -131,6 +135,7 @@ const STOCK_INFO: Record<string, StockInfo> = {
   },
   META: {
     sector: "Internet Software", mcap: "1.40T", pe: "24.1", eps: "22.80", div: "0.39%", hi: "638.40", lo: "442.65",
+    roce: "26.4%", roe: "34.9%", beta: "1.21",
     facts: [
       "Ad revenue reaccelerating on AI-driven targeting and Reels monetization.",
       "Heavy AI capex ($740B class) pressures near-term free cash flow.",
@@ -144,6 +149,7 @@ const STOCK_INFO: Record<string, StockInfo> = {
   },
   MSFT: {
     sector: "Software", mcap: "2.77T", pe: "31.5", eps: "11.80", div: "0.78%", hi: "468.35", lo: "366.50",
+    roce: "29.8%", roe: "38.5%", beta: "0.90",
     facts: [
       "Azure growth driven by AI workloads and Copilot adoption across the suite.",
       "Diversified revenue: cloud, productivity, gaming reduce single-segment risk.",
@@ -157,6 +163,7 @@ const STOCK_INFO: Record<string, StockInfo> = {
   },
   TSLA: {
     sector: "Automobiles", mcap: "585B", pe: "68.2", eps: "2.68", div: "—", hi: "278.98", lo: "138.80",
+    roce: "10.2%", roe: "20.4%", beta: "2.29",
     facts: [
       "Deliveries under pressure from price competition in China and the EU.",
       "Energy storage and FSD are the long-term growth narratives.",
@@ -170,6 +177,7 @@ const STOCK_INFO: Record<string, StockInfo> = {
   },
   GOOGL: {
     sector: "Interactive Media", mcap: "2.10T", pe: "26.8", eps: "7.50", div: "0.45%", hi: "341.20", lo: "159.40",
+    roce: "28.1%", roe: "30.8%", beta: "1.05",
     facts: [
       "Search remains resilient; Gemini integration defends query share.",
       "Cloud profitability inflecting positive.",
@@ -183,6 +191,7 @@ const STOCK_INFO: Record<string, StockInfo> = {
   },
   AMZN: {
     sector: "E-commerce", mcap: "2.45T", pe: "42.0", eps: "5.54", div: "—", hi: "242.50", lo: "151.60",
+    roce: "14.9%", roe: "21.9%", beta: "1.15",
     facts: [
       "AWS reacceleration is the main profit driver; retail margins improving.",
       "Advertising is a fast-growing, high-margin third pillar.",
@@ -194,12 +203,97 @@ const STOCK_INFO: Record<string, StockInfo> = {
       { r: "low", h: "Logistics network expansion continues", s: "CNBC · 2d ago" },
     ],
   },
+  LLY: {
+    sector: "Pharmaceuticals", mcap: "1.09T", pe: "58.7", eps: "20.60", div: "0.50%", hi: "1,260.00", lo: "711.40",
+    roce: "38.2%", roe: "59.4%", beta: "0.41",
+    facts: [
+      "GLP-1 franchise (Mounjaro/Zepbound) drives outsized revenue growth; supply is the constraint, not demand.",
+      "Pipeline depth in obesity and Alzheimer's supports the premium multiple.",
+    ],
+    news: [
+      { r: "high", h: "Zepbound supply expansion ahead of schedule", s: "Reuters · 5h ago" },
+      { r: "med", h: "Oral GLP-1 trial data expected this quarter", s: "Bloomberg · 1d ago" },
+    ],
+  },
+  TSM: {
+    sector: "Semiconductors", mcap: "2.24T", pe: "32.5", eps: "13.30", div: "1.05%", hi: "448.00", lo: "134.25",
+    roce: "32.6%", roe: "30.1%", beta: "1.28",
+    facts: [
+      "Effective monopoly on leading-edge AI chip manufacturing; N2 ramp fully booked.",
+      "Geopolitical concentration in Taiwan is the structural risk premium.",
+    ],
+    news: [
+      { r: "high", h: "TSMC monthly revenue jumps on AI accelerator demand", s: "Reuters · 8h ago" },
+      { r: "med", h: "Arizona fab yields approach Taiwan parity", s: "Nikkei · 2d ago" },
+    ],
+  },
+  AMD: {
+    sector: "Semiconductors", mcap: "845B", pe: "96.3", eps: "5.42", div: "—", hi: "552.20", lo: "76.48",
+    roce: "8.9%", roe: "9.6%", beta: "1.97",
+    facts: [
+      "MI-series accelerators are the credible #2 to Nvidia; hyperscaler design wins accelerating.",
+      "Valuation prices in significant AI share gains — execution risk is high.",
+    ],
+    news: [
+      { r: "high", h: "AMD lands new hyperscaler MI400 commitment", s: "Reuters · 6h ago" },
+      { r: "med", h: "ROCm software stack closes gap with CUDA", s: "The Information · 1d ago" },
+    ],
+  },
+  PANW: {
+    sector: "Cybersecurity", mcap: "210B", pe: "58.9", eps: "5.17", div: "—", hi: "318.50", lo: "142.01",
+    roce: "11.4%", roe: "21.7%", beta: "1.10",
+    facts: [
+      "Platformization strategy consolidates security spend onto fewer vendors — PANW is a net winner.",
+      "AI-agent security is an emerging product line and TAM expander.",
+    ],
+    news: [
+      { r: "med", h: "Palo Alto expands AI security suite", s: "CNBC · 7h ago" },
+      { r: "low", h: "Analyst day sets FY30 platform targets", s: "Barron's · 3d ago" },
+    ],
+  },
+  UNH: {
+    sector: "Managed Health", mcap: "396B", pe: "18.9", eps: "22.64", div: "2.05%", hi: "458.10", lo: "234.60",
+    roce: "15.8%", roe: "24.3%", beta: "0.55",
+    facts: [
+      "Medical cost trend is stabilizing after two rough years; margin recovery underway.",
+      "Optum remains the structural growth engine; regulatory scrutiny is the overhang.",
+    ],
+    news: [
+      { r: "med", h: "UnitedHealth reaffirms full-year outlook", s: "Reuters · 1d ago" },
+      { r: "low", h: "Medicare Advantage rates finalized for 2027", s: "WSJ · 3d ago" },
+    ],
+  },
+  NVO: {
+    sector: "Pharmaceuticals", mcap: "214B", pe: "12.4", eps: "3.88", div: "3.60%", hi: "91.20", lo: "42.30",
+    roce: "46.1%", roe: "71.2%", beta: "0.87",
+    facts: [
+      "Wegovy share losses to Lilly compressed the multiple; now trades like a value stock.",
+      "Next-gen obesity pipeline (amycretin) is the re-rating catalyst — or the thesis breaker.",
+    ],
+    news: [
+      { r: "high", h: "Novo cuts guidance again on US obesity pricing", s: "Reuters · 4h ago" },
+      { r: "med", h: "Amycretin phase 3 enrollment completes", s: "Bloomberg · 2d ago" },
+    ],
+  },
+  CRWD: {
+    sector: "Cybersecurity", mcap: "174B", pe: "118.5", eps: "5.92", div: "—", hi: "745.00", lo: "385.10",
+    roce: "4.2%", roe: "8.9%", beta: "1.16",
+    facts: [
+      "Falcon platform ARR compounding ~30%; module attach rates keep rising.",
+      "Premium multiple leaves no room for growth deceleration.",
+    ],
+    news: [
+      { r: "med", h: "CrowdStrike ARR beats; NRR ticks up", s: "CNBC · 1d ago" },
+      { r: "low", h: "New agentic-AI SOC product announced", s: "TechCrunch · 2d ago" },
+    ],
+  },
 };
 
 export function infoFor(t: string): StockInfo {
   return (
     STOCK_INFO[t] ?? {
       sector: "Equity", mcap: "—", pe: "—", eps: "—", div: "—", hi: "—", lo: "—",
+      roce: "—", roe: "—", beta: "—",
       facts: [
         `AI summary would appear here, generated from the latest filings and price action for ${t}.`,
         "Fundamentals are pulled live from a market-data MCP source.",
