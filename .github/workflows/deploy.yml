@@ -56,7 +56,8 @@ jobs:
               ANTHROPIC_API_KEY=secretref:anthropic-api-key \
               "SNAPTRADE_CLIENT_ID=${{ vars.SNAPTRADE_CLIENT_ID }}" \
               "SNAPTRADE_USER_ID=${{ vars.SNAPTRADE_USER_ID }}" \
-              "SNAPTRADE_ACCOUNT_ID=${{ vars.SNAPTRADE_ACCOUNT_ID }}"
+              "SNAPTRADE_ACCOUNT_ID=${{ vars.SNAPTRADE_ACCOUNT_ID }}" \
+              "ADMIN_TOKEN=${{ vars.ADMIN_TOKEN }}"
 
       - name: Deploy to Container App
         run: |
