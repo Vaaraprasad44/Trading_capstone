@@ -28,11 +28,27 @@ export default function Dashboard() {
   const [alpha, setAlpha] = useState(alphaHoldings);
   const [sip, setSip] = useState(sipHoldings);
   const [open, setOpen] = useState(swingOpen);
+  const [sipPlan, setSipPlan] = useState<{ plan_md: string; breakdown: { symbol: string; pct: number }[] } | null>(null);
 
   // Ask AI sheet: one common agent for the fund, opened from the table header
   // button or any Ask box — not scoped to a single row
   const [aiOpen, setAiOpen] = useState(false);
   const [pendingQ, setPendingQ] = useState<{ text: string; id: number } | null>(null);
+
+  // Wire live SIP holdings + plan; silently keeps mock data on error (e.g. SnapTrade not configured)
+  useEffect(() => {
+    fetch("/api/holdings")
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((rows: { symbol: string; name: string; qty: number; avg: number | null; price: number | null; dayPct: number | null }[]) => {
+        if (!rows.length) return;
+        setSip(rows.map((h) => ({ ticker: h.symbol, name: h.name, qty: h.qty, avg: h.avg ?? 0, ltp: h.price ?? 0, day: h.dayPct ?? 0 })));
+      })
+      .catch(() => {});
+    fetch("/api/funds/sip/sip-plan")
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then(setSipPlan)
+      .catch(() => {});
+  }, []);
 
   // live price tick, as in the prototype
   useEffect(() => {
@@ -100,7 +116,7 @@ export default function Dashboard() {
           <AlphaView holdings={alpha} themeTick={themeTick} onOpen={openStock} onAsk={ask} onAskAi={openAi} />
         )}
         {fund === "sip" && (
-          <SipView holdings={sip} themeTick={themeTick} onOpen={openStock} onAsk={ask} onAskAi={openAi} />
+          <SipView holdings={sip} themeTick={themeTick} onOpen={openStock} onAsk={ask} onAskAi={openAi} plan={sipPlan} />
         )}
         {fund === "swing" && (
           <SwingView open={open} closed={swingClosed} themeTick={themeTick} onOpen={openStock} onAsk={ask} />
