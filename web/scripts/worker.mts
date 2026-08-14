@@ -13,6 +13,7 @@
 import { pathToFileURL } from 'node:url'
 import { db } from '../src/lib/db.js'
 import { runSync } from '../src/lib/feed.js'
+import { marketdata } from '../src/lib/marketdata.js'
 import { snaptrade, snaptradeConfigured } from '../src/lib/snaptrade.js'
 
 const DEFAULTS = { poll_minutes: 10, sync_every_hours: 6, price_tolerance_pct: 2, window_hours: 48 }
@@ -65,7 +66,37 @@ export async function checkOrders(cfg: typeof DEFAULTS) {
 
 async function equitySnapshot() {
   const accounts = await snaptrade.listAccounts()
-  return accounts.map((a) => ({ account: a.name, equity: a.balance.total?.amount ?? null }))
+  return accounts.map((a) => ({ id: a.id, account: a.name, equity: a.balance.total?.amount ?? null }))
+}
+
+// EOD bookkeeping for the SIP prototype (runs with stage 2, idempotent):
+// SPY closes → benchmark_prices, and today's NAV row for the SIP fund.
+// ponytail: whole account = the SIP fund for the one-fund prototype
+// (docs/FUND-ATTRIBUTION.md) — per-fund attribution returns with fund #2.
+export async function writeDaily(equity: { id: string; account: string; equity: number | null }[]) {
+  const sip = await db.funds.findUniqueOrThrow({ where: { code: 'sip' } })
+  for (const c of await marketdata.getDailyCloses(sip.benchmark_symbol, '1mo')) {
+    await db.benchmark_prices.upsert({
+      where: { symbol_date: { symbol: sip.benchmark_symbol, date: new Date(c.date) } },
+      create: { symbol: sip.benchmark_symbol, date: new Date(c.date), close: c.close },
+      update: { close: c.close },
+    })
+  }
+
+  const nav = equity.find((e) => e.id === process.env.SNAPTRADE_ACCOUNT_ID)?.equity
+  if (nav == null) return { nav: null }
+  const [balance] = await snaptrade.getBalances()
+  const invested = await db.broker_fills.aggregate({
+    _sum: { amount: true },
+    where: { activity_type: 'transfer', amount: { gt: 0 } },
+  })
+  const today = new Date(new Date().toISOString().slice(0, 10))
+  await db.fund_nav_daily.upsert({
+    where: { fund_id_date: { fund_id: sip.id, date: today } },
+    create: { fund_id: sip.id, date: today, nav, cash: balance?.cash ?? 0, invested: invested._sum.amount ?? 0 },
+    update: { nav, cash: balance?.cash ?? 0, invested: invested._sum.amount ?? 0 },
+  })
+  return { nav }
 }
 
 export async function cycle(trigger: string) {
@@ -82,9 +113,9 @@ export async function cycle(trigger: string) {
       })
       summary.stage2 = { fills_ingested: sync.fills_ingested, ...reconciliation }
     }
-    // whole-account equity, recorded per run. Per-fund NAV stays open until the
-    // fund-attribution decision (DB-SCHEMA §5) — never fabricate a split.
-    summary.equity = await equitySnapshot()
+    const equity = await equitySnapshot()
+    summary.equity = equity
+    if (summary.stage2) summary.daily = await writeDaily(equity)
     await db.agent_runs.update({
       where: { id: run.id },
       data: { status: 'ok', finished_at: new Date(), summary: JSON.parse(JSON.stringify(summary)) },

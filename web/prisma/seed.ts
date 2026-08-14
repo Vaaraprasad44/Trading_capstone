@@ -6,11 +6,14 @@ export async function seed(db: PrismaClient, { demo = true }: { demo?: boolean }
     { id: 2, code: 'sip', name: 'Smart SIP', description: 'A disciplined monthly plan for small, regular contributions.', badge: 'Monthly plan' },
     { id: 3, code: 'swing', name: 'Swing Fund', description: 'Days-to-weeks trades with published stops and exits.', badge: 'Short-term swings' },
   ] as const
+  // Option A bootstrap (docs/FUND-ATTRIBUTION.md): the record starts fresh —
+  // inception = prototype start; the feed's pull window begins here.
+  const INCEPTION = new Date('2026-08-01')
   for (const f of funds) {
     await db.funds.upsert({
       where: { id: f.id },
-      create: { ...f, inception_date: new Date('2026-01-01') },
-      update: { name: f.name, description: f.description, badge: f.badge },
+      create: { ...f, inception_date: INCEPTION },
+      update: { name: f.name, description: f.description, badge: f.badge, inception_date: INCEPTION },
     })
   }
 
@@ -50,8 +53,8 @@ export async function seed(db: PrismaClient, { demo = true }: { demo?: boolean }
     create: {
       fund_id: 2,
       month,
-      plan_md: 'This month: 100% VOO — stay the course.',
-      breakdown: [{ symbol: 'VOO', pct: 100 }],
+      plan_md: 'This month: 60% VOO / 40% QQQ of the monthly contribution — broad market core plus tech tilt.',
+      breakdown: [{ symbol: 'VOO', pct: 60 }, { symbol: 'QQQ', pct: 40 }],
       published_at: new Date(),
     },
     update: {},
