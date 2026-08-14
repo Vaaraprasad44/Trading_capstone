@@ -17,6 +17,7 @@
     "predev": "docker compose -f ../docker-compose.yml up -d --wait"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.117.1",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@prisma/client": "^6.19.3",
     "@react-three/fiber": "^9.6.1",

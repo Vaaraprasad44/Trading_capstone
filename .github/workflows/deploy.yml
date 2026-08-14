@@ -45,12 +45,15 @@ jobs:
           az containerapp secret set \
             --resource-group rg-students-platform \
             --name ca-${{ vars.STUDENT }} \
-            --secrets snaptrade-consumer-key="${{ secrets.SNAPTRADE_CONSUMER_KEY }}"
+            --secrets \
+              snaptrade-consumer-key="${{ secrets.SNAPTRADE_CONSUMER_KEY }}" \
+              anthropic-api-key="${{ secrets.ANTHROPIC_API_KEY }}"
           az containerapp update \
             --resource-group rg-students-platform \
             --name ca-${{ vars.STUDENT }} \
             --set-env-vars \
               SNAPTRADE_CONSUMER_KEY=secretref:snaptrade-consumer-key \
+              ANTHROPIC_API_KEY=secretref:anthropic-api-key \
               "SNAPTRADE_CLIENT_ID=${{ vars.SNAPTRADE_CLIENT_ID }}" \
               "SNAPTRADE_USER_ID=${{ vars.SNAPTRADE_USER_ID }}" \
               "SNAPTRADE_ACCOUNT_ID=${{ vars.SNAPTRADE_ACCOUNT_ID }}"

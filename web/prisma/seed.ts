@@ -39,6 +39,20 @@ export async function seed(db: PrismaClient, { demo = true }: { demo?: boolean }
     })
   }
 
+  // Fixed-UUID demo user — used by the assistant route for pre-auth sessions (v1).
+  // Replace with real user IDs once Epic 6 (auth) lands.
+  await db.users.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000001' },
+    create: {
+      id: '00000000-0000-0000-0000-000000000001',
+      email: 'demo@meridiancapital.app',
+      auth_provider: 'demo',
+      auth_subject: 'demo',
+      role: 'subscriber',
+    },
+    update: {},
+  })
+
   if ((await db.disclosure_versions.count()) === 0) {
     await db.disclosure_versions.create({
       data: { body_md: 'Not financial advice. Past performance does not guarantee future results.' },
