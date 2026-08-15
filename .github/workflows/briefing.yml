@@ -1,8 +1,9 @@
-# Daily AI market briefing — runs scripts/generate-briefing.ts and commits the
-# JSON. The app reads web/data/briefing/latest.json from raw.githubusercontent
-# at request time, so no redeploy is needed (and this bot commit wouldn't
-# trigger deploy.yml anyway — pushes made with GITHUB_TOKEN don't start other
-# workflows).
+# Daily AI market briefing — runs scripts/generate-briefing.ts and publishes
+# the JSON to the unprotected `briefing-data` branch (main is PR-only by
+# ruleset, so the bot can't push there). The app reads latest.json from
+# raw.githubusercontent on that branch at request time, so no redeploy is
+# needed. The branch is rebuilt each run as main + one data commit; prior
+# archive files are carried forward before committing.
 #
 # Requires one repo SECRET: ANTHROPIC_API_KEY.
 name: briefing
@@ -22,6 +23,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # carry forward the archive files accumulated on the data branch
+      - name: Restore prior archives
+        run: |
+          git fetch origin briefing-data && git checkout FETCH_HEAD -- web/data/briefing/archive || true
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -38,10 +44,11 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: npx tsx scripts/generate-briefing.ts
 
-      - name: Commit briefing data
+      - name: Publish briefing data
         run: |
           git config user.name "briefing-bot"
           git config user.email "briefing-bot@users.noreply.github.com"
           git add web/data/briefing
           git diff --cached --quiet || git commit -m "Update AI market briefing"
-          git push
+          # force: the branch is a publish target (main + one data commit), not history
+          git push --force origin HEAD:briefing-data

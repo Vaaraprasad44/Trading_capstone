@@ -1,9 +1,10 @@
 // Daily briefing types + loader. The content is generated each morning by
 // scripts/generate-briefing.ts (Claude + Yahoo Finance) via the briefing
-// GitHub Action, which commits data/briefing/latest.json. In production we
-// fetch that file from raw.githubusercontent so the deployed app picks up the
-// day's briefing without a redeploy (bot commits don't trigger deploy.yml);
-// the committed copy baked in at build time is the fallback.
+// GitHub Action, which publishes data/briefing/latest.json to the
+// `briefing-data` branch (main is PR-only, so the bot can't push there). In
+// production we fetch that branch's file from raw.githubusercontent so the
+// deployed app picks up the day's briefing without a redeploy; the copy on
+// main, baked in at build time, is the fallback.
 // Text fields are markdown-lite: **bold** only.
 
 import committed from "../../../data/briefing/latest.json";
@@ -48,7 +49,7 @@ export type Briefing = {
 };
 
 const RAW_URL =
-  "https://raw.githubusercontent.com/Vaaraprasad44/Trading_capstone/main/web/data/briefing/latest.json";
+  "https://raw.githubusercontent.com/Vaaraprasad44/Trading_capstone/briefing-data/web/data/briefing/latest.json";
 
 export async function getBriefing(): Promise<Briefing> {
   try {
