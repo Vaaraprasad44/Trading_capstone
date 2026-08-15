@@ -4,8 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import {
-  createBreadthSim, moodLabel, SECTORS,
-  type BreadthSnapshot, type BreadthStock,
+  createBreadthSim, moodLabel, snapshotFromSectors, SECTORS,
+  type BreadthSnapshot, type BreadthStock, type SectorBreadth,
 } from "./breadth";
 
 const TICK_MS = 2500; // matches the holdings drift interval
@@ -250,14 +250,45 @@ export function BreadthPanel() {
   const [snapshot, setSnapshot] = useState<BreadthSnapshot | null>(null);
   const [webgl, setWebgl] = useState(false);
   const [reduced, setReduced] = useState(false);
+  const [live, setLive] = useState(false);
+  const liveRef = useRef(false);
 
   useEffect(() => {
-    simRef.current ??= createBreadthSim();
     setWebgl(webglAvailable());
     setReduced(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-    setSnapshot(simRef.current.tick());
-    const id = setInterval(() => setSnapshot(simRef.current!.tick()), TICK_MS);
-    return () => clearInterval(id);
+
+    // Real sector-ETF breadth from /api/breadth; 60s matches the quote cache.
+    // Nothing renders until the first result: live data on success, the sim
+    // as fallback only after the feed actually fails.
+    let cancelled = false;
+    let simId: ReturnType<typeof setInterval> | undefined;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/breadth");
+        if (!res.ok) throw new Error(String(res.status));
+        const sectors = (await res.json()) as SectorBreadth[];
+        if (!cancelled && sectors.length === SECTORS.length) {
+          liveRef.current = true;
+          setLive(true);
+          setSnapshot(snapshotFromSectors(sectors));
+        }
+      } catch {
+        if (cancelled || liveRef.current || simId) return; // keep last live data / already simulating
+        simRef.current ??= createBreadthSim();
+        setSnapshot(simRef.current.tick());
+        simId = setInterval(() => {
+          if (liveRef.current) return;
+          setSnapshot(simRef.current!.tick());
+        }, TICK_MS);
+      }
+    };
+    load();
+    const liveId = setInterval(load, 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(liveId);
+      if (simId) clearInterval(simId);
+    };
   }, []);
 
   const up = snapshot && snapshot.advancers >= snapshot.decliners;
@@ -266,7 +297,7 @@ export function BreadthPanel() {
     <div className="breadth-panel">
       <div className="bp-head">
         <h3>
-          Market breadth <span className="bp-tag">simulated</span>
+          Market breadth <span className="bp-tag">{live ? "live · sector ETFs" : snapshot ? "simulated" : "loading…"}</span>
         </h3>
         {snapshot && (
           <span className="bp-mood" style={{ color: up ? "var(--up)" : "var(--dn)" }}>

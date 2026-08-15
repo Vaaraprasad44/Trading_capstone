@@ -26,7 +26,10 @@ export default function Dashboard({ banner }: { banner: BannerStrip }) {
   const [fund, setFund] = useState<FundKey>("alpha");
   const [themeTick, setThemeTick] = useState(0);
   const [stock, setStock] = useState<string | null>(null);
-  const [alpha, setAlpha] = useState(alphaHoldings);
+  // null = still loading live data — Alpha renders a loading card, never the
+  // mock; the mock only lands as fallback if the feed itself fails.
+  const [alpha, setAlpha] = useState<Holding[] | null>(null);
+  const [alphaLive, setAlphaLive] = useState(false);
   const [sip, setSip] = useState(sipHoldings);
   const [open, setOpen] = useState(swingOpen);
 
@@ -35,15 +38,43 @@ export default function Dashboard({ banner }: { banner: BannerStrip }) {
   const [aiOpen, setAiOpen] = useState(false);
   const [pendingQ, setPendingQ] = useState<{ text: string; id: number } | null>(null);
 
-  // live price tick, as in the prototype
+  // Alpha = the connected SnapTrade account: broker qty/avg, Yahoo ltp/day%.
+  // Poll cadence matches the server's 60s quote cache; the mock data stays if
+  // the feed is unconfigured (503) or down.
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/holdings");
+        if (!res.ok) throw new Error(String(res.status));
+        const rows: Holding[] = await res.json();
+        if (!cancelled && rows.length) {
+          setAlpha(rows);
+          setAlphaLive(true);
+        }
+      } catch {
+        // feed down/unconfigured: mock fallback, but never overwrite live data
+        if (!cancelled) setAlpha((cur) => cur ?? alphaHoldings);
+      }
+    };
+    load();
+    const id = setInterval(load, 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, []);
+
+  // fake price tick, as in the prototype — mock funds only; live alpha
+  // updates come from the poll above
   useEffect(() => {
     const id = setInterval(() => {
-      setAlpha(drift);
+      if (!alphaLive) setAlpha((cur) => (cur ? drift(cur) : cur));
       setSip(drift);
       setOpen(drift);
     }, 2500);
     return () => clearInterval(id);
-  }, []);
+  }, [alphaLive]);
 
   // Esc closes the AI sheet and the drill-down drawer
   useEffect(() => {
@@ -65,7 +96,7 @@ export default function Dashboard({ banner }: { banner: BannerStrip }) {
     setPendingQ((p) => ({ text: q, id: (p?.id ?? 0) + 1 }));
   }, []);
 
-  const fundHoldings = fund === "alpha" ? alpha : fund === "sip" ? sip : open;
+  const fundHoldings = fund === "alpha" ? (alpha ?? []) : fund === "sip" ? sip : open;
   const fundLabel = FUNDS.find((f) => f.key === fund)!.label;
 
   return (
@@ -97,9 +128,14 @@ export default function Dashboard({ banner }: { banner: BannerStrip }) {
           </div>
           <BreadthPanel />
         </div>
-        {fund === "alpha" && (
-          <AlphaView holdings={alpha} banner={banner} themeTick={themeTick} onOpen={openStock} onAsk={ask} onAskAi={openAi} />
-        )}
+        {fund === "alpha" &&
+          (alpha ? (
+            <AlphaView holdings={alpha} banner={banner} themeTick={themeTick} onOpen={openStock} onAsk={ask} onAskAi={openAi} />
+          ) : (
+            <div className="card section" style={{ marginTop: 18, padding: 28, textAlign: "center", color: "var(--text-2)" }}>
+              Loading live holdings…
+            </div>
+          ))}
         {fund === "sip" && (
           <SipView holdings={sip} themeTick={themeTick} onOpen={openStock} onAsk={ask} onAskAi={openAi} />
         )}
@@ -114,7 +150,7 @@ export default function Dashboard({ banner }: { banner: BannerStrip }) {
 
       <StockDrawer
         ticker={stock}
-        allHoldings={[...alpha, ...sip, ...open]}
+        allHoldings={[...(alpha ?? []), ...sip, ...open]}
         themeTick={themeTick}
         onClose={() => setStock(null)}
         onAsk={ask}

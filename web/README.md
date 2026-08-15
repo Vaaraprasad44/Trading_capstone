@@ -61,6 +61,7 @@ of the image.
 | GET | `/api/feed/syncs` | sync history (staleness banner source) |
 | GET | `/api/reconciliations?status&unresolved` | verification + omission flags |
 | POST | `/api/reconciliations/:id/resolve` | trader addresses a flag |
+| GET | `/api/holdings` | live broker positions (SnapTrade) + live LTP/day% (Yahoo) |
 | GET | `/api/instruments/:symbol/news` | AI-ranked news |
 | GET | `/api/instruments/:symbol/key-facts` | cached key-facts |
 
