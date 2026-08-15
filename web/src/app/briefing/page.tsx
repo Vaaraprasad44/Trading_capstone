@@ -1,12 +1,9 @@
-"use client";
-
-import { useState } from "react";
 import Link from "next/link";
-import { FEATURED_RANGES, briefing, featured, type BriefingSection, type FeaturedRange } from "./data";
-import { FeaturedChart } from "./FeaturedChart";
+import { getBriefing, type BriefingSection } from "./data";
+import { FeaturedCard } from "./FeaturedChart";
 import "./briefing.css";
 
-/* markdown-lite: the briefing agent emits **bold** inside sentences */
+/* markdown-lite: the briefing generator emits **bold** inside sentences */
 function Inline({ text }: { text: string }) {
   return <>{text.split("**").map((part, i) => (i % 2 ? <b key={i}>{part}</b> : part))}</>;
 }
@@ -21,51 +18,6 @@ function Sources({ names }: { names?: string[] }) {
         </span>
       ))}
     </div>
-  );
-}
-
-function FeaturedCard() {
-  const [range, setRange] = useState<FeaturedRange>("1D");
-  const ah = featured.afterHours;
-  return (
-    <section className="fc">
-      <div className="fc-name">
-        {featured.name} ({featured.ticker})
-      </div>
-      <div className="fc-top">
-        <div>
-          <div className="fc-price">${featured.price.toFixed(2)}</div>
-          <div className="fc-chg t-up">
-            +${featured.change.toFixed(2)} (+{featured.changePct.toFixed(2)}%)<span className="asof">{featured.asOf}</span>
-          </div>
-          <div className="fc-ah">
-            ${ah.price.toFixed(2)}{" "}
-            <span className="t-dn">
-              -${Math.abs(ah.change).toFixed(2)} ({ah.changePct.toFixed(2)}%)
-            </span>{" "}
-            After Hours
-          </div>
-        </div>
-        <div className="fc-ranges">
-          {FEATURED_RANGES.map((r) => (
-            <button key={r} className={r === range ? "on" : ""} aria-pressed={r === range} onClick={() => setRange(r)}>
-              {r}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="fc-chart">
-        <FeaturedChart range={range} />
-      </div>
-      <div className="fc-stats">
-        {featured.stats.map((s) => (
-          <div className="fc-stat" key={s.label}>
-            <span>{s.label}</span>
-            <b>{s.value}</b>
-          </div>
-        ))}
-      </div>
-    </section>
   );
 }
 
@@ -95,7 +47,8 @@ function Section({ n, s }: { n: number; s: BriefingSection }) {
   );
 }
 
-export default function BriefingPage() {
+export default async function BriefingPage() {
+  const briefing = await getBriefing();
   return (
     <div className="brief">
       <nav className="nav">
@@ -123,7 +76,7 @@ export default function BriefingPage() {
         </p>
         <Sources names={briefing.pulseSources} />
 
-        <FeaturedCard />
+        <FeaturedCard featured={briefing.featured} />
 
         {briefing.sections.map((s, i) => (
           <Section key={s.title} n={i + 1} s={s} />
@@ -137,8 +90,8 @@ export default function BriefingPage() {
         </div>
 
         <div className="foot">
-          Placeholder content — this page will be generated each morning by the ai-markets-briefing headless agent
-          before the market opens.
+          Generated each morning before market open by the ai-markets-briefing workflow — prose by Claude with web
+          search, prices from Yahoo Finance.
         </div>
       </article>
     </div>
