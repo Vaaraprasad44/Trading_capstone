@@ -10,15 +10,10 @@
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx --env-file=.env prisma/seed.ts",
     "smoke": "tsx --env-file=.env scripts/smoke.mts",
-    "worker": "tsx --env-file=.env scripts/worker.mts",
-    "test:trust": "tsx --env-file=.env scripts/test-feed-map.mts && tsx --env-file=.env scripts/test-trust-engine.mts",
-    "mcp:portfolio": "tsx --env-file=.env scripts/portfolio-mcp.mts",
     "typecheck": "tsc --noEmit",
     "predev": "docker compose -f ../docker-compose.yml up -d --wait"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.117.1",
-    "@modelcontextprotocol/sdk": "^1.30.0",
     "@prisma/client": "^6.19.3",
     "@react-three/fiber": "^9.6.1",
     "ag-grid-community": "^36.0.2",

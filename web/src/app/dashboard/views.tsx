@@ -362,7 +362,7 @@ export function AlphaView({ holdings, themeTick, onOpen, onAsk, onAskAi }: { hol
   );
 }
 
-export function SipView({ holdings, themeTick, onOpen, onAsk, onAskAi, plan }: { holdings: Holding[]; themeTick: number; onOpen: OpenStock; onAsk: Ask; onAskAi: () => void; plan?: { plan_md: string; breakdown: { symbol: string; pct: number }[] } | null }) {
+export function SipView({ holdings, themeTick, onOpen, onAsk, onAskAi }: { holdings: Holding[]; themeTick: number; onOpen: OpenStock; onAsk: Ask; onAskAi: () => void }) {
   const H = computeHoldings(holdings);
   const monthly = 2000;
   const months = 30;
@@ -383,7 +383,7 @@ export function SipView({ holdings, themeTick, onOpen, onAsk, onAskAi, plan }: {
       </div>
       <AiStrip
         tag="SIP coach"
-        msg={plan?.plan_md ?? `You've invested ${months} months straight — staying the course beat lump-sum timing by ~3.2%. Next auto-buy of ${usd(monthly)} is scheduled for 1 Jul 2026.`}
+        msg={`You've invested ${months} months straight — staying the course beat lump-sum timing by ~3.2%. Next auto-buy of ${usd(monthly)} is scheduled for 1 Jul 2026.`}
         fund="sip"
         onAsk={onAsk}
       />
