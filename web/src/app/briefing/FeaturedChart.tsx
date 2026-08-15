@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { CategoryScale, Chart, Filler, LinearScale, LineElement, PointElement, Tooltip } from "chart.js";
 import { Line } from "react-chartjs-2";
-import { featuredSeries, type FeaturedRange } from "./data";
+import { FEATURED_RANGES, type Featured, type FeaturedRange, type RangeSeries } from "./data";
 
 Chart.register(LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Filler);
 
@@ -20,10 +20,10 @@ function useBriefVars() {
   return vars;
 }
 
-export function FeaturedChart({ range }: { range: FeaturedRange }) {
+function FeaturedChart({ range, series }: { range: FeaturedRange; series: RangeSeries }) {
   const vars = useBriefVars();
   if (!vars) return null;
-  const { labels, points } = featuredSeries(range);
+  const { labels, points } = series;
   const up = points[points.length - 1] >= points[0];
   return (
     <Line
@@ -60,5 +60,54 @@ export function FeaturedChart({ range }: { range: FeaturedRange }) {
         },
       }}
     />
+  );
+}
+
+export function FeaturedCard({ featured }: { featured: Featured }) {
+  const [range, setRange] = useState<FeaturedRange>("1D");
+  const ah = featured.afterHours;
+  const up = featured.change >= 0;
+  return (
+    <section className="fc">
+      <div className="fc-name">
+        {featured.name} ({featured.ticker})
+      </div>
+      <div className="fc-top">
+        <div>
+          <div className="fc-price">${featured.price.toFixed(2)}</div>
+          <div className={"fc-chg " + (up ? "t-up" : "t-dn")}>
+            {up ? "+" : "-"}${Math.abs(featured.change).toFixed(2)} ({up ? "+" : ""}
+            {featured.changePct.toFixed(2)}%)<span className="asof">{featured.asOf}</span>
+          </div>
+          {ah && (
+            <div className="fc-ah">
+              ${ah.price.toFixed(2)}{" "}
+              <span className={ah.change >= 0 ? "t-up" : "t-dn"}>
+                {ah.change >= 0 ? "+" : "-"}${Math.abs(ah.change).toFixed(2)} ({ah.changePct.toFixed(2)}%)
+              </span>{" "}
+              After Hours
+            </div>
+          )}
+        </div>
+        <div className="fc-ranges">
+          {FEATURED_RANGES.map((r) => (
+            <button key={r} className={r === range ? "on" : ""} aria-pressed={r === range} onClick={() => setRange(r)}>
+              {r}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="fc-chart">
+        <FeaturedChart range={range} series={featured.series[range]} />
+      </div>
+      <div className="fc-stats">
+        {featured.stats.map((s) => (
+          <div className="fc-stat" key={s.label}>
+            <span>{s.label}</span>
+            <b>{s.value}</b>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

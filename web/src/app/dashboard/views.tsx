@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { banner } from "@/app/briefing/data";
+import type { BannerStrip } from "@/app/briefing/data";
 import { recentCommunity } from "@/app/stock/data";
 import {
   COLORS,
@@ -60,9 +60,9 @@ function AiStrip({ tag, msg, fund, onAsk }: { tag: string; msg: string; fund: Fu
 }
 
 /* Daily AI briefing strip: teases the top stories of the day and clicks
-   through to /briefing. Content comes from the same placeholder data the
-   briefing page renders (later: the headless briefing agent's daily output). */
-function BriefingStrip() {
+   through to /briefing. Content comes from the same daily JSON the briefing
+   page renders, passed down from the server page. */
+function BriefingStrip({ banner }: { banner: BannerStrip }) {
   const [i, setI] = useState(0);
   const [paused, setPaused] = useState(false);
   // headline carousel: paused on hover/focus, skipped under reduced motion
@@ -70,7 +70,7 @@ function BriefingStrip() {
     if (paused || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const id = setInterval(() => setI((v) => (v + 1) % banner.headlines.length), 6000);
     return () => clearInterval(id);
-  }, [paused]);
+  }, [paused, banner.headlines.length]);
   return (
     <Link
       href="/briefing"
@@ -278,7 +278,7 @@ function HoldingsTable({ holdings, title, onOpen, onAskAi, detail, onAsk }: {
 
 /* ============ fund views ============ */
 
-export function AlphaView({ holdings, themeTick, onOpen, onAsk, onAskAi }: { holdings: Holding[]; themeTick: number; onOpen: OpenStock; onAsk: Ask; onAskAi: () => void }) {
+export function AlphaView({ holdings, banner, themeTick, onOpen, onAsk, onAskAi }: { holdings: Holding[]; banner: BannerStrip; themeTick: number; onOpen: OpenStock; onAsk: Ask; onAskAi: () => void }) {
   const H = computeHoldings(holdings);
   const FUND_SIZE = 1000000;
   const REALIZED = 376674.63;
@@ -304,7 +304,7 @@ export function AlphaView({ holdings, themeTick, onOpen, onAsk, onAskAi }: { hol
           <Kpi label="Net P&L" value={"+" + usd(net)} pill={pct((net / invested) * 100)} up />
         </div>
       </div>
-      <BriefingStrip />
+      <BriefingStrip banner={banner} />
       <div className="card section">
         <div className="card-pad" style={{ paddingBottom: 0 }}>
           <div className="section-head">
