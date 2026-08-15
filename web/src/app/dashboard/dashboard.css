@@ -234,11 +234,12 @@
 .dash .seg-ctrl button { border: none; background: transparent; color: var(--text-2); font: inherit; font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 6px; cursor: pointer; }
 .dash .seg-ctrl button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
 
-.dash .alloc-wrap { display: flex; align-items: center; gap: 20px; }
-.dash .alloc-legend { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
-.dash .alloc-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-2); }
+.dash .alloc-wrap { display: flex; align-items: center; justify-content: center; gap: 28px; }
+/* 2 cols × 5 fixed 20px rows = 10 entries visible at once, rest scroll */
+.dash .alloc-legend { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 20px; align-content: start; gap: 8px 24px; max-height: 132px; overflow-y: auto; padding-right: 4px; }
+.dash .alloc-row { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text-2); }
 .dash .alloc-row .dot { width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0; }
-.dash .alloc-row .pct { margin-left: auto; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+.dash .alloc-row .pct { margin-left: 10px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
 
 .dash .act { display: flex; gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--border); }
 .dash .act:last-child { border-bottom: none; }
@@ -316,5 +317,4 @@
   .dash .kpi + .kpi { border-left: none; padding-left: 0; }
   .dash .cash-grid { grid-template-columns: repeat(2, 1fr); }
   .dash .cols { grid-template-columns: 1fr; }
-  .dash .alloc-legend { grid-template-columns: 1fr; }
 }

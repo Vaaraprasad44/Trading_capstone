@@ -38,9 +38,44 @@ function useCssVars(themeTick: number): CssVars | null {
 
 const noAxes = { x: { display: false as const }, y: { display: false as const } };
 
-export function PerfChart({ range, themeTick }: { range: "1M" | "3M" | "6M" | "1Y"; themeTick: number }) {
+type PerfRange = "1M" | "3M" | "6M" | "1Y";
+type Perf = { labels: string[]; portfolio: number[]; spx: number[] };
+const PERF_API_RANGE: Record<PerfRange, string> = { "1M": "1mo", "3M": "3mo", "6M": "6mo", "1Y": "1y" };
+
+export function PerfChart({ range, themeTick }: { range: PerfRange; themeTick: number }) {
   const vars = useCssVars(themeTick);
+
+  // Live % return vs ^GSPC from /api/performance (SnapTrade + Yahoo). Shows
+  // "Loading…" until the fetch resolves; the mock dollar series below is the
+  // fallback only when the feed actually fails.
+  const [live, setLive] = useState<Partial<Record<PerfRange, Perf>>>({});
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/performance?range=${PERF_API_RANGE[range]}`)
+      .then((r) => (r.ok ? (r.json() as Promise<Perf>) : null))
+      .then((d) => {
+        if (cancelled) return;
+        if (d && d.labels.length) setLive((m) => ({ ...m, [range]: d }));
+        else setFailed(true);
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [range]);
+  const perf = live[range];
+
   if (!vars) return null;
+  if (!perf && !failed) {
+    return (
+      <div style={{ height: "100%", display: "grid", placeItems: "center", color: "var(--text-3)", fontSize: 13 }}>
+        Loading live performance…
+      </div>
+    );
+  }
   const ranges = {
     "1M": series(22, 1180000, 0.006, 0.0016),
     "3M": series(30, 1120000, 0.008, 0.0017),
@@ -53,14 +88,18 @@ export function PerfChart({ range, themeTick }: { range: "1M" | "3M" | "6M" | "1
     "6M": series(30, 1000000, 0.007, 0.0011),
     "1Y": series(40, 860000, 0.009, 0.0015),
   };
-  const d = ranges[range];
+  const d = perf ? perf.portfolio : ranges[range];
+  const b = perf ? perf.spx : bench[range];
+  const fmt = perf
+    ? (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`
+    : (v: number) => `$${v.toLocaleString()}`;
   return (
     <Line
       data={{
-        labels: d.map(() => ""),
+        labels: perf ? perf.labels : d.map(() => ""),
         datasets: [
           { label: "Portfolio", data: d, borderColor: vars.brand, backgroundColor: "rgba(78,79,235,.08)", fill: true, tension: 0.35, pointRadius: 0, borderWidth: 2.5 },
-          { label: "S&P 500", data: bench[range], borderColor: vars.text3, borderDash: [5, 4], fill: false, tension: 0.35, pointRadius: 0, borderWidth: 1.5 },
+          { label: "S&P 500", data: b, borderColor: vars.text3, borderDash: [5, 4], fill: false, tension: 0.35, pointRadius: 0, borderWidth: 1.5 },
         ],
       }}
       options={{
@@ -68,11 +107,18 @@ export function PerfChart({ range, themeTick }: { range: "1M" | "3M" | "6M" | "1
         maintainAspectRatio: false,
         plugins: {
           legend: { display: true, position: "bottom", labels: { boxWidth: 12, usePointStyle: true, font: { size: 12 }, color: vars.text2 } },
-          tooltip: { callbacks: { label: (c) => `${c.dataset.label}: $${(c.parsed.y ?? 0).toLocaleString()}` } },
+          tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${fmt(c.parsed.y ?? 0)}` } },
         },
         scales: {
           x: { grid: { display: false }, ticks: { display: false } },
-          y: { grid: { color: vars.border }, ticks: { color: vars.text3, font: { size: 11 }, callback: (v) => "$" + (Number(v) / 1000000).toFixed(2) + "M" } },
+          y: {
+            grid: { color: vars.border },
+            ticks: {
+              color: vars.text3,
+              font: { size: 11 },
+              callback: (v) => (perf ? `${Number(v).toFixed(1)}%` : "$" + (Number(v) / 1000000).toFixed(2) + "M"),
+            },
+          },
         },
       }}
     />

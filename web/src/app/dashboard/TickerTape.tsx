@@ -1,10 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-// Mock broad-market tape, same presentation-only pattern as data.ts: fixed
-// seed values (stable for server prerender), drifted client-side on a timer.
-type Quote = { sym: string; name: string; value: number; pct: number };
+// Broad-market tape: live Yahoo quotes via /api/quotes, refreshed every 60s
+// (the server's quote-cache TTL). Shows "—" placeholders while loading; the
+// static seed values below appear only if the feed itself fails.
+type Quote = { sym: string; name: string; value: number | null; pct: number | null };
+
+// Macro anchors shown ahead of the portfolio tickers (^TNX quotes the 10y
+// yield directly); the holdings half of the tape comes from /api/holdings,
+// which already carries live price + day%.
+const ANCHORS: { sym: string; name: string; symbol: string }[] = [
+  { sym: "SPX", name: "S&P 500", symbol: "^GSPC" },
+  { sym: "NDX", name: "Nasdaq 100", symbol: "^NDX" },
+  { sym: "VIX", name: "CBOE Volatility", symbol: "^VIX" },
+  { sym: "US10Y", name: "10-Yr Treasury", symbol: "^TNX" },
+];
 
 const SEED: Quote[] = [
   { sym: "SPX", name: "S&P 500", value: 6874.21, pct: 0.42 },
@@ -19,29 +30,57 @@ const SEED: Quote[] = [
   { sym: "DXY", name: "Dollar Index", value: 101.23, pct: -0.18 },
 ];
 
-const TICK_MS = 2500; // matches the holdings drift interval
-
-function drift(qs: Quote[]): Quote[] {
-  return qs.map((q) => {
-    const d = (Math.random() + Math.random() + Math.random() - 1.5) * 0.14;
-    return {
-      ...q,
-      pct: Math.max(-9, Math.min(9, q.pct + d)),
-      value: q.value * (1 + d / 100),
-    };
-  });
-}
+// "—" placeholders shown until the first live fetch resolves
+const LOADING: Quote[] = ANCHORS.map((t) => ({ sym: t.sym, name: t.name, value: null, pct: null }));
 
 function fmtVal(v: number) {
   return v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 export function TickerTape() {
-  const [quotes, setQuotes] = useState(SEED);
+  const [quotes, setQuotes] = useState(LOADING);
+  const liveRef = useRef(false);
 
   useEffect(() => {
-    const id = setInterval(() => setQuotes(drift), TICK_MS);
-    return () => clearInterval(id);
+    let cancelled = false;
+    const load = async () => {
+      // either half may fail without blanking the other
+      const [q, h] = await Promise.allSettled([
+        fetch(`/api/quotes?symbols=${ANCHORS.map((t) => encodeURIComponent(t.symbol)).join(",")}`).then((r) =>
+          r.ok ? (r.json() as Promise<{ price?: number; dayPct?: number | null }[]>) : Promise.reject(),
+        ),
+        fetch("/api/holdings").then((r) =>
+          r.ok ? (r.json() as Promise<{ ticker: string; name: string; ltp: number; day: number | null }[]>) : Promise.reject(),
+        ),
+      ]);
+      const anchors =
+        q.status === "fulfilled"
+          ? ANCHORS.flatMap((t, i) => {
+              const r = q.value[i];
+              if (r?.price == null) return []; // one bad symbol shouldn't blank its slot's neighbors
+              return [{ sym: t.sym, name: t.name, value: r.price, pct: r.dayPct ?? 0 }];
+            })
+          : [];
+      const holdings =
+        h.status === "fulfilled"
+          ? h.value.map((row) => ({ sym: row.ticker, name: row.name, value: row.ltp, pct: row.day ?? 0 }))
+          : [];
+      const next = [...anchors, ...holdings];
+      if (cancelled) return;
+      if (next.length) {
+        liveRef.current = true;
+        setQuotes(next);
+      } else if (!liveRef.current) {
+        // both feeds down: static seed as fallback, never overwriting live data
+        setQuotes(SEED);
+      }
+    };
+    load();
+    const liveId = setInterval(load, 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(liveId);
+    };
   }, []);
 
   // the row is rendered twice so the -50% translate loops seamlessly
@@ -50,10 +89,12 @@ export function TickerTape() {
       {quotes.map((q) => (
         <span className="tape-item" key={q.sym} title={q.name}>
           <b>{q.sym}</b>
-          <span className="tape-val">{fmtVal(q.value)}</span>
-          <span className={q.pct >= 0 ? "tape-up" : "tape-dn"}>
-            {q.pct >= 0 ? "▲" : "▼"} {Math.abs(q.pct).toFixed(2)}%
-          </span>
+          <span className="tape-val">{q.value == null ? "—" : fmtVal(q.value)}</span>
+          {q.pct != null && (
+            <span className={q.pct >= 0 ? "tape-up" : "tape-dn"}>
+              {q.pct >= 0 ? "▲" : "▼"} {Math.abs(q.pct).toFixed(2)}%
+            </span>
+          )}
         </span>
       ))}
     </div>
