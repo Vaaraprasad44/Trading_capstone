@@ -6,14 +6,11 @@ export async function seed(db: PrismaClient, { demo = true }: { demo?: boolean }
     { id: 2, code: 'sip', name: 'Smart SIP', description: 'A disciplined monthly plan for small, regular contributions.', badge: 'Monthly plan' },
     { id: 3, code: 'swing', name: 'Swing Fund', description: 'Days-to-weeks trades with published stops and exits.', badge: 'Short-term swings' },
   ] as const
-  // Option A bootstrap (docs/FUND-ATTRIBUTION.md): the record starts fresh —
-  // inception = prototype start; the feed's pull window begins here.
-  const INCEPTION = new Date('2026-08-01')
   for (const f of funds) {
     await db.funds.upsert({
       where: { id: f.id },
-      create: { ...f, inception_date: INCEPTION },
-      update: { name: f.name, description: f.description, badge: f.badge, inception_date: INCEPTION },
+      create: { ...f, inception_date: new Date('2026-01-01') },
+      update: { name: f.name, description: f.description, badge: f.badge },
     })
   }
 
@@ -39,20 +36,6 @@ export async function seed(db: PrismaClient, { demo = true }: { demo?: boolean }
     })
   }
 
-  // Fixed-UUID demo user — used by the assistant route for pre-auth sessions (v1).
-  // Replace with real user IDs once Epic 6 (auth) lands.
-  await db.users.upsert({
-    where: { id: '00000000-0000-0000-0000-000000000001' },
-    create: {
-      id: '00000000-0000-0000-0000-000000000001',
-      email: 'demo@meridiancapital.app',
-      auth_provider: 'demo',
-      auth_subject: 'demo',
-      role: 'subscriber',
-    },
-    update: {},
-  })
-
   if ((await db.disclosure_versions.count()) === 0) {
     await db.disclosure_versions.create({
       data: { body_md: 'Not financial advice. Past performance does not guarantee future results.' },
@@ -67,8 +50,8 @@ export async function seed(db: PrismaClient, { demo = true }: { demo?: boolean }
     create: {
       fund_id: 2,
       month,
-      plan_md: 'This month: 60% VOO / 40% QQQ of the monthly contribution — broad market core plus tech tilt.',
-      breakdown: [{ symbol: 'VOO', pct: 60 }, { symbol: 'QQQ', pct: 40 }],
+      plan_md: 'This month: 100% VOO — stay the course.',
+      breakdown: [{ symbol: 'VOO', pct: 100 }],
       published_at: new Date(),
     },
     update: {},

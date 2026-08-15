@@ -28,7 +28,7 @@ COPY --from=build /src/public ./public
 # does NOT work on Prisma 6 — the CLI relies on hoisted transitive deps
 # (c12, effect, ...). A pinned global install is self-contained.
 COPY --from=build /src/prisma ./prisma
-RUN npm i -g prisma@6 tsx
+RUN npm i -g prisma@6
 
 EXPOSE 3000
-CMD ["sh", "-c", "prisma migrate deploy && tsx prisma/seed.ts && node server.js"]
+CMD ["sh", "-c", "prisma migrate deploy && node server.js"]

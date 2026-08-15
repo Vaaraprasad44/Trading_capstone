@@ -1,7 +1,8 @@
 import { z } from 'zod'
+import type { Prisma } from '@prisma/client'
+import { db } from '@/lib/db'
 import { Ticker } from '@/lib/domain'
-import { runSync } from '@/lib/feed'
-import { snaptradeConfigured } from '@/lib/snaptrade'
+import { reconcile } from '@/lib/reconcile'
 import { handle, json } from '@/lib/http'
 
 const Fill = z.object({
@@ -17,8 +18,8 @@ const Fill = z.object({
   raw: z.record(z.string(), z.unknown()).default({}),
 })
 
-// No fills in the body → pull live from SnapTrade (PRD 1.1). Body fills stay
-// for tests and manual backfill.
+// ponytail: body-supplied fills stand in for the SnapTrade Portfolio MCP —
+// swap the source when the M1 spike lands; ingest + reconciliation are real.
 export const POST = handle(async (req: Request) => {
   const body = z
     .object({
@@ -27,8 +28,48 @@ export const POST = handle(async (req: Request) => {
     })
     .parse(await req.json().catch(() => ({})))
 
-  if (body.fills.length === 0 && !snaptradeConfigured())
-    return json({ error: 'SnapTrade not configured and no fills supplied' }, { status: 503 })
-
-  return json(await runSync(body.trigger, body.fills))
+  const sync = await db.feed_syncs.create({ data: { trigger: body.trigger } })
+  try {
+    let ingested = 0
+    for (const f of body.fills) {
+      const instrument = f.symbol
+        ? await db.instruments.upsert({
+            where: { symbol: f.symbol },
+            create: { symbol: f.symbol, name: f.symbol },
+            update: {},
+          })
+        : null
+      const result = await db.broker_fills.createMany({
+        data: [
+          {
+            snaptrade_txn_id: f.snaptrade_txn_id,
+            instrument_id: instrument?.id,
+            raw_symbol: f.symbol,
+            activity_type: f.activity_type,
+            side: f.side,
+            quantity: f.quantity,
+            price: f.price,
+            amount: f.amount,
+            fees: f.fees,
+            executed_at: f.executed_at,
+            raw: f.raw as Prisma.InputJsonValue,
+          },
+        ],
+        skipDuplicates: true, // snaptrade_txn_id = idempotent ingest
+      })
+      ingested += result.count
+    }
+    const reconciliation = await reconcile()
+    const done = await db.feed_syncs.update({
+      where: { id: sync.id },
+      data: { status: 'ok', finished_at: new Date(), fills_ingested: ingested },
+    })
+    return json({ sync: done, reconciliation })
+  } catch (err) {
+    await db.feed_syncs.update({
+      where: { id: sync.id },
+      data: { status: 'error', finished_at: new Date(), error: String(err) },
+    })
+    throw err
+  }
 })

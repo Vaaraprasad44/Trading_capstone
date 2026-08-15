@@ -8,13 +8,7 @@ import { db } from './db'
 const WINDOW_MS = 48 * 3600e3
 const PRICE_TOLERANCE = 0.02
 
-// Overridable so the reconciliation agent can re-plan on trader feedback
-// (agent_feedback.adjustment → these knobs; PRD 7.4).
-export type ReconcileOpts = { windowMs?: number; priceTolerance?: number }
-
-export async function reconcile(opts: ReconcileOpts = {}) {
-  const windowMs = opts.windowMs ?? WINDOW_MS
-  const priceTolerance = opts.priceTolerance ?? PRICE_TOLERANCE
+export async function reconcile() {
   const pending = await db.broker_fills.findMany({
     where: { activity_type: 'trade', reconciliations: null },
     orderBy: { executed_at: 'asc' },
@@ -23,8 +17,8 @@ export async function reconcile(opts: ReconcileOpts = {}) {
   const counts = { matched: 0, mismatched: 0, unmatched_fill: 0, unmatched_card: 0 }
 
   for (const fill of pending) {
-    const from = new Date(fill.executed_at.getTime() - windowMs)
-    const to = new Date(fill.executed_at.getTime() + windowMs)
+    const from = new Date(fill.executed_at.getTime() - WINDOW_MS)
+    const to = new Date(fill.executed_at.getTime() + WINDOW_MS)
 
     if (fill.instrument_id != null) {
       // entry: a published card on this instrument whose entry side is the fill side
@@ -39,7 +33,7 @@ export async function reconcile(opts: ReconcileOpts = {}) {
       })
       if (card) {
         const delta = Math.abs(Number(fill.price) - Number(card.entry_price)) / Number(card.entry_price)
-        const ok = delta <= priceTolerance
+        const ok = delta <= PRICE_TOLERANCE
         await db.reconciliations.create({
           data: {
             kind: 'entry',
