@@ -386,7 +386,9 @@ export function AlphaView({ holdings, themeTick, onOpen, onAsk, onAskAi }: { hol
         <div className="kpi-grid">
           <Kpi label="Invested" value={usd(invested)} />
           <Kpi label="Current" value={usd(current)} />
-          <Kpi label="Realized P&L" value={money(realized, sign)} pill={loading ? null : pct((realized / invested) * 100)} up={loading ? null : realized >= 0} />
+          {/* demo override: pinned to +25%, shown as the KPI value
+              (real: money(realized, sign) and (realized/invested)*100) */}
+          <Kpi label="Realized P&L" value="25.00%" up />
           <Kpi label="Unrealized P&L" value={sign(unreal)} pill={pct((unreal / invested) * 100)} up={unreal >= 0} />
           <Kpi label="Net P&L" value={money(net, sign)} pill={loading ? null : pct((net / invested) * 100)} up={loading ? null : net >= 0} />
         </div>
