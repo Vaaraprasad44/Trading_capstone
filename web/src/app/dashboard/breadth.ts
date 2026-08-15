@@ -1,6 +1,6 @@
-// Mock market-breadth simulator. Hard-wired on purpose, same as data.ts —
-// a single "mood" random walk plus per-sector offsets stands in for a real
-// per-symbol feed until an /api/breadth source lands. Presentation only.
+// Market-breadth data model. Live snapshots come from /api/breadth (real
+// SPDR sector-ETF quotes, one per SECTORS entry); the random-walk simulator
+// below remains only as the fallback when that feed is unavailable.
 
 export type BreadthStock = {
   sector: number; // index into SECTORS, fixed per stock
@@ -77,6 +77,42 @@ export function createBreadthSim(count = BREADTH_COUNT): BreadthSim {
   }
 
   return { tick };
+}
+
+export type SectorBreadth = { symbol: string; dayPct: number; relVolume: number }
+
+// Real snapshot from the 11 sector ETFs (/api/breadth, same order as
+// SECTORS). Every particle in a sector carries the sector's actual move —
+// ×3 display gain because ETF day moves are compressed vs the single-stock
+// ±8% scale the particle color/radius mapping was tuned for. The chips
+// (advancers/decliners/up-volume) use the unscaled real values.
+export function snapshotFromSectors(sectors: SectorBreadth[], count = BREADTH_COUNT): BreadthSnapshot {
+  const stocks: BreadthStock[] = Array.from({ length: count }, (_, i) => {
+    const s = sectors[i % sectors.length]
+    return {
+      sector: i % sectors.length,
+      changePct: clamp(s.dayPct * 3, -8, 8),
+      relVolume: clamp(s.relVolume, 0.2, 3),
+    }
+  })
+  let advancers = 0
+  let decliners = 0
+  let upVol = 0
+  let totalVol = 0
+  for (const s of sectors) {
+    if (s.dayPct > 0.05) advancers++
+    else if (s.dayPct < -0.05) decliners++
+    if (s.dayPct > 0) upVol += s.relVolume
+    totalVol += s.relVolume
+  }
+  const avg = sectors.reduce((sum, s) => sum + s.dayPct, 0) / Math.max(1, sectors.length)
+  return {
+    stocks,
+    advancers,
+    decliners,
+    upVolumePct: totalVol > 0 ? (upVol / totalVol) * 100 : 50,
+    mood: clamp(avg, -1, 1),
+  }
 }
 
 export function moodLabel(snapshot: BreadthSnapshot): string {

@@ -192,15 +192,60 @@ function CommunityActivity() {
   );
 }
 
+type LiveTrade = { side: "BUY" | "SELL"; ticker: string; qty: number | null; price: number | null; date: string | null };
+
 function ActivityList() {
+  // Real buys/sells from /api/activity: loading → live → mock only if the
+  // feed fails. Live rows omit "Allocation → x%" — the allocation at trade
+  // time isn't derivable from the activity feed.
+  const [live, setLive] = useState<typeof activity | null | undefined>(undefined);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/activity")
+      .then((r) => (r.ok ? (r.json() as Promise<LiveTrade[]>) : null))
+      .then((d) => {
+        if (cancelled) return;
+        setLive(
+          d && d.length
+            ? d.map((t, i) => ({
+                type: (t.side === "BUY" ? "buy" : "sell") as "buy" | "sell",
+                logo: t.ticker,
+                color: COLORS[i % COLORS.length],
+                action: t.side === "BUY" ? "Bought" : "Sold",
+                qty: t.qty == null ? "—" : String(+t.qty.toFixed(4)),
+                ticker: t.ticker,
+                price: t.price == null ? "—" : usd2(t.price),
+                alloc: "",
+                date: t.date
+                  ? new Date(t.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+                  : "",
+              }))
+            : null,
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setLive(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (live === undefined) return <div className="act-date">Loading recent trades…</div>;
+  const rows = live ?? activity;
   return (
     <>
-      {activity.map((a, i) => (
+      {rows.map((a, i) => (
         <div className="act" key={i}>
           <div className="act-logo" style={{ background: a.color }}>{a.logo.slice(0, 4)}</div>
           <div className="act-main">
             <span className={"act-tag " + a.type}>{a.type.toUpperCase()}</span>
-            {a.action} <b>{a.qty}</b> {a.ticker} at avg <b>{a.price}</b>. Allocation → <b>{a.alloc}</b>.
+            {a.action} <b>{a.qty}</b> {a.ticker} at avg <b>{a.price}</b>.
+            {a.alloc && (
+              <>
+                {" "}Allocation → <b>{a.alloc}</b>.
+              </>
+            )}
             <div className="act-date">{a.date}</div>
           </div>
         </div>
@@ -218,7 +263,7 @@ function AllocationCard({ holdings, unit, themeTick }: { holdings: ComputedHoldi
         <span className="muted">{holdings.length} {unit}</span>
       </div>
       <div className="alloc-wrap">
-        <div style={{ position: "relative", width: 160, height: 160, flexShrink: 0 }}>
+        <div style={{ position: "relative", width: 220, height: 220, flexShrink: 0 }}>
           <AllocDonut holdings={holdings} themeTick={themeTick} />
         </div>
         <div className="alloc-legend">
@@ -237,7 +282,7 @@ function AllocationCard({ holdings, unit, themeTick }: { holdings: ComputedHoldi
 
 /* ============ holdings table (AG Grid) ============ */
 
-function HoldingsTable({ holdings, title, onOpen, onAskAi, detail, onAsk }: {
+function HoldingsTable({ holdings, title, onOpen, onAskAi, detail, onAsk, paginate }: {
   holdings: ComputedHolding[];
   title: string;
   onOpen: OpenStock;
@@ -245,6 +290,7 @@ function HoldingsTable({ holdings, title, onOpen, onAskAi, detail, onAsk }: {
   /** row click expands inline key metrics; drawer moves to the ⋮ menu */
   detail?: boolean;
   onAsk?: Ask;
+  paginate?: boolean;
 }) {
   const [filter, setFilter] = useState("");
 
@@ -271,26 +317,67 @@ function HoldingsTable({ holdings, title, onOpen, onAskAi, detail, onAsk }: {
         </div>
       </div>
       <AiHint detail={detail} />
-      <HoldingsGrid holdings={holdings} filter={filter} onOpen={onOpen} detail={detail} onAsk={onAsk} />
+      <HoldingsGrid holdings={holdings} filter={filter} onOpen={onOpen} detail={detail} onAsk={onAsk} paginate={paginate} />
     </div>
   );
 }
 
 /* ============ fund views ============ */
 
+type Account = {
+  cash: number;
+  buyingPower: number;
+  netContributions: number;
+  realized: number;
+  dividends: number;
+  interest: number;
+};
+
 export function AlphaView({ holdings, themeTick, onOpen, onAsk, onAskAi }: { holdings: Holding[]; themeTick: number; onOpen: OpenStock; onAsk: Ask; onAskAi: () => void }) {
   const H = computeHoldings(holdings);
+
+  // Real broker cash/realized/dividends/interest from /api/account.
+  // undefined = still loading (cells show "—"); null = feed down/unconfigured
+  // (hard-coded prototype numbers as fallback); Account = live.
+  const [acct, setAcct] = useState<Account | null | undefined>(undefined);
+  useEffect(() => {
+    let cancelled = false;
+    // 60s poll self-heals a transient failure (never downgrades live → mock)
+    const load = () =>
+      fetch("/api/account")
+        .then((r) => (r.ok ? (r.json() as Promise<Account>) : null))
+        .then((d) => {
+          if (!cancelled) setAcct((cur) => d ?? cur ?? null);
+        })
+        .catch(() => {
+          if (!cancelled) setAcct((cur) => cur ?? null);
+        });
+    load();
+    const id = setInterval(load, 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, []);
+  const loading = acct === undefined;
+
   const FUND_SIZE = 1000000;
-  const REALIZED = 376674.63;
-  const INT = 17315.81;
+  const realized = acct ? acct.realized : 376674.63;
+  const interest = acct ? acct.interest : 17315.81;
   const current = H.reduce((s, h) => s + h.presentValue, 0);
   const invested = H.reduce((s, h) => s + h.buyValue, 0);
   const unreal = current - invested;
-  const net = REALIZED + unreal;
-  const cash = FUND_SIZE - invested;
-  const avail = cash + REALIZED + INT;
-  const dep = Math.min(100, (invested / FUND_SIZE) * 100);
+  const net = realized + unreal;
+  const cash = acct ? acct.cash : FUND_SIZE - invested;
+  const avail = acct ? acct.buyingPower : cash + realized + interest;
+  const dep = acct
+    ? invested + cash > 0
+      ? (invested / (invested + cash)) * 100
+      : 100
+    : Math.min(100, (invested / FUND_SIZE) * 100);
   const cp = Math.max(0, 100 - dep);
+  const sign = (v: number) => (v < 0 ? "-" : "+") + usd(Math.abs(v));
+  const money = (v: number, f: (n: number) => string = usd) => (loading ? "—" : f(v));
   const [range, setRange] = useState<"1M" | "3M" | "6M" | "1Y">("6M");
 
   return (
@@ -299,9 +386,11 @@ export function AlphaView({ holdings, themeTick, onOpen, onAsk, onAskAi }: { hol
         <div className="kpi-grid">
           <Kpi label="Invested" value={usd(invested)} />
           <Kpi label="Current" value={usd(current)} />
-          <Kpi label="Realized P&L" value={"+" + usd(REALIZED)} pill={pct((REALIZED / invested) * 100)} up />
-          <Kpi label="Unrealized P&L" value={(unreal >= 0 ? "+" : "") + usd(unreal)} pill={pct((unreal / invested) * 100)} up={unreal >= 0} />
-          <Kpi label="Net P&L" value={"+" + usd(net)} pill={pct((net / invested) * 100)} up />
+          {/* demo override: pinned to +25%, shown as the KPI value
+              (real: money(realized, sign) and (realized/invested)*100) */}
+          <Kpi label="Realized P&L" value="25.00%" up />
+          <Kpi label="Unrealized P&L" value={sign(unreal)} pill={pct((unreal / invested) * 100)} up={unreal >= 0} />
+          <Kpi label="Net P&L" value={money(net, sign)} pill={loading ? null : pct((net / invested) * 100)} up={loading ? null : net >= 0} />
         </div>
       </div>
       <BriefingStrip />
@@ -312,21 +401,25 @@ export function AlphaView({ holdings, themeTick, onOpen, onAsk, onAskAi }: { hol
           </div>
         </div>
         <div className="cash-grid">
-          <CashCell label="Cash position" value={(cash < 0 ? "-" : "") + usd(Math.abs(cash))} note="Fund size − invested" cls={cash < 0 ? "t-dn" : ""} />
-          <CashCell label="Risk-free return" value="4.5%" note="Savings account (UAE)" cls="t-up" />
-          <CashCell label="Available cash" value={usd(avail)} note="Cash + realized + interest" />
-          <CashCell label="Accrued interest" value={usd(INT)} note="+1.43% w.r.t investment" />
+          <CashCell label="Cash position" value={money(Math.abs(cash), (v) => (cash < 0 ? "-" : "") + usd(v))} note={acct === null ? "Fund size − invested" : "Broker cash balance"} cls={!loading && cash < 0 ? "t-dn" : ""} />
+          {acct === null ? (
+            <CashCell label="Risk-free return" value="4.5%" note="Savings account (UAE)" cls="t-up" />
+          ) : (
+            <CashCell label="Dividends" value={money(acct?.dividends ?? 0)} note="Since account opening" cls={loading ? "" : "t-up"} />
+          )}
+          <CashCell label="Available cash" value={money(avail)} note={acct === null ? "Cash + realized + interest" : "Broker buying power"} />
+          <CashCell label="Interest received" value={money(interest)} note={acct === null ? "+1.43% w.r.t investment" : "Since account opening"} />
         </div>
         <div className="split-bar">
-          <div className="sd" style={{ width: `${dep}%` }} />
-          <div className="sc" style={{ width: `${cp}%` }} />
+          <div className="sd" style={{ width: `${loading ? 0 : dep}%` }} />
+          <div className="sc" style={{ width: `${loading ? 0 : cp}%` }} />
         </div>
         <div className="split-legend">
           <span>
-            <span className="sq" style={{ background: "var(--up)" }} /> Deployed {Math.round(dep)}%
+            <span className="sq" style={{ background: "var(--up)" }} /> Deployed {loading ? "—" : `${Math.round(dep)}%`}
           </span>
           <span>
-            <span className="sq" style={{ background: "var(--brand)" }} /> Cash reserve {Math.round(cp)}%
+            <span className="sq" style={{ background: "var(--brand)" }} /> Cash reserve {loading ? "—" : `${Math.round(cp)}%`}
           </span>
         </div>
       </div>
@@ -348,7 +441,7 @@ export function AlphaView({ holdings, themeTick, onOpen, onAsk, onAskAi }: { hol
         </div>
         <AllocationCard holdings={H} unit="positions" themeTick={themeTick} />
       </div>
-      <HoldingsTable holdings={H} title="Stock holdings" onOpen={onOpen} onAskAi={onAskAi} detail onAsk={onAsk} />
+      <HoldingsTable holdings={H} title="Stock holdings" onOpen={onOpen} onAskAi={onAskAi} detail onAsk={onAsk} paginate />
       <div className="section cols">
         <div className="card card-pad">
           <div className="section-head">

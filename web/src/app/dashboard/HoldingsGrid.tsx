@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { AgGridReact } from "ag-grid-react";
@@ -45,54 +45,20 @@ const glassTheme = themeQuartz.withParams({
 // full-width key-metric panels (Community stand-in for Enterprise
 // master/detail). Copying the parent's fields keeps sorting and the quick
 // filter behaving identically for both rows.
-type GridRow = ComputedHolding & { history: number[]; __detail?: boolean };
+type GridRow = ComputedHolding & { __detail?: boolean };
 
 type GridCtx = {
   openMenu: (ticker: string, rect: DOMRect) => void;
   collapse: () => void;
 };
 
-const HISTORY_LEN = 40;
 const DETAIL_ROW_H = 162;
-
-function gauss() {
-  return Math.random() + Math.random() + Math.random() - 1.5;
-}
 
 function TickerCell(p: ICellRendererParams<GridRow, string>) {
   return (
     <span className="tkr">
       {p.value} <span className="chev">›</span>
     </span>
-  );
-}
-
-// Line sparkline of recent LTP ticks, colored by direction over the window —
-// stands in for the finance demo's Enterprise sparkline column.
-function TimelineCell(p: ICellRendererParams<GridRow>) {
-  const h = p.data?.history;
-  if (!h || h.length < 2) return null;
-  const w = 120;
-  const ht = 26;
-  const pad = 2;
-  const min = Math.min(...h);
-  const max = Math.max(...h);
-  const span = max - min || 1;
-  const pts = h
-    .map((v, i) => {
-      const x = pad + (i / (h.length - 1)) * (w - pad * 2);
-      const y = ht - pad - ((v - min) / span) * (ht - pad * 2);
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(" ");
-  const up = h[h.length - 1] >= h[0];
-  const color = up ? "#00e694" : "#ff5b6e";
-  const [lx, ly] = pts.split(" ").pop()!.split(",");
-  return (
-    <svg width={w} height={ht} style={{ display: "block", margin: "6px 0" }} aria-hidden>
-      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" />
-      <circle cx={lx} cy={ly} r="2" fill={color} />
-    </svg>
   );
 }
 
@@ -171,24 +137,21 @@ const numCol = (field: keyof ComputedHolding, headerName: string, fmt: (v: numbe
   valueFormatter: (p) => (p.value == null ? "" : fmt(p.value as number)),
 });
 
-const trendClass = (p: { value: number | null | undefined }) =>
-  p.value == null ? "" : p.value >= 0 ? "t-up" : "t-dn";
+// cellClass replaces the rightAligned type's cell class, so re-add it here
+const trendClass = (p: { value: number | null | undefined }) => [
+  "ag-right-aligned-cell",
+  ...(p.value == null ? [] : [p.value >= 0 ? "t-up" : "t-dn"]),
+];
 
 const COL_DEFS: ColDef<GridRow>[] = [
   { field: "ticker", headerName: "Ticker", cellRenderer: TickerCell, width: 120, filter: true },
   { field: "name", headerName: "Name", flex: 2, minWidth: 170, filter: true },
-  {
-    colId: "timeline",
-    headerName: "Timeline",
-    cellRenderer: TimelineCell,
-    sortable: false,
-    width: 150,
-  },
   { ...numCol("qty", "Qty", (v) => v.toFixed(2)) },
   { ...numCol("avg", "Avg buy", usd2) },
   { ...numCol("ltp", "LTP", usd2), enableCellChangeFlash: true },
   { ...numCol("buyValue", "Buy value", usd) },
   { ...numCol("presentValue", "Present value", usd), enableCellChangeFlash: true },
+  { ...numCol("pnl", "P&L", usd), cellClass: trendClass, enableCellChangeFlash: true },
   { ...numCol("pnlPct", "P&L %", pct), cellClass: trendClass, enableCellChangeFlash: true, sort: "desc" },
   { ...numCol("allocation", "Alloc %", (v) => v.toFixed(2) + "%") },
   { ...numCol("day", "Day %", pct), cellClass: trendClass },
@@ -216,7 +179,7 @@ const DEFAULT_COL: ColDef<GridRow> = {
   minWidth: 90,
 };
 
-export function HoldingsGrid({ holdings, filter, onOpen, detail = false, onAsk }: {
+export function HoldingsGrid({ holdings, filter, onOpen, detail = false, onAsk, paginate = false }: {
 
   holdings: ComputedHolding[];
   filter: string;
@@ -224,31 +187,15 @@ export function HoldingsGrid({ holdings, filter, onOpen, detail = false, onAsk }
   /** row click expands inline key metrics (accordion) + adds the ⋮ column */
   detail?: boolean;
   onAsk?: (q: string) => void;
+  /** page the table 10 rows at a time */
+  paginate?: boolean;
 }) {
-  // Rolling LTP history per ticker, fed by the same drift ticks that update
-  // the table. New tickers get a synthetic backfill so sparklines start full.
-  const historyRef = useRef(new Map<string, number[]>());
   const router = useRouter();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ ticker: string; top: number; left: number } | null>(null);
 
   const rows = useMemo<GridRow[]>(() => {
-    const hist = historyRef.current;
-    const out: GridRow[] = holdings.map((h) => {
-      let arr = hist.get(h.ticker);
-      if (!arr) {
-        arr = [];
-        let v = h.ltp;
-        for (let i = 0; i < HISTORY_LEN - 1; i++) {
-          v = Math.max(1, v * (1 - gauss() * 0.004));
-          arr.unshift(v);
-        }
-        hist.set(h.ticker, arr);
-      }
-      arr.push(h.ltp);
-      if (arr.length > HISTORY_LEN) arr.shift();
-      return { ...h, history: [...arr] };
-    });
+    const out: GridRow[] = [...holdings];
     if (detail && expanded) {
       const i = out.findIndex((r) => r.ticker === expanded);
       if (i >= 0) out.splice(i + 1, 0, { ...out[i], __detail: true });
@@ -325,6 +272,9 @@ export function HoldingsGrid({ holdings, filter, onOpen, detail = false, onAsk }
         defaultColDef={DEFAULT_COL}
         getRowId={(p) => p.data.ticker + p.data.name + (p.data.__detail ? ":detail" : "")}
         quickFilterText={filter}
+        pagination={paginate}
+        paginationPageSize={10}
+        paginationPageSizeSelector={false}
         domLayout="autoHeight"
         rowHeight={40}
         context={ctx}
